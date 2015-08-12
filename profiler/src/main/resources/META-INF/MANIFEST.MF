@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Premain-Class: de.codesourcery.toyprofiler.Agent
+Main-Class: de.codesourcery.sampleapp.TestApplication
+Can-Retransform-Classes: true
