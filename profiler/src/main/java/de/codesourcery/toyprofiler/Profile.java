@@ -8,6 +8,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Stack;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.IntConsumer;
+import java.util.function.IntPredicate;
 import java.util.stream.Collectors;
 
 import javax.xml.namespace.QName;
@@ -17,16 +19,15 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import javax.xml.stream.XMLStreamWriter;
 
-import com.carrotsearch.hppc.IntObjectHashMap;
-import com.carrotsearch.hppc.cursors.IntCursor;
-import com.carrotsearch.hppc.cursors.ObjectCursor;
-import com.carrotsearch.hppc.predicates.IntPredicate;
+import net.openhft.koloboke.collect.IntCursor;
+import net.openhft.koloboke.collect.map.hash.HashIntObjMap;
+import net.openhft.koloboke.collect.map.hash.HashIntObjMaps;
 
 public class Profile
 {
     private static final ConcurrentHashMap<Thread, Profile> PROFILES_BY_THREAD = new ConcurrentHashMap<>();
 
-    private static final IntObjectHashMap<String> ID_TO_METHOD_NAME = new IntObjectHashMap<>(2000);
+    private static final HashIntObjMap<String> ID_TO_METHOD_NAME = HashIntObjMaps.newMutableMap( 2000 );
 
     public static final ThreadLocal<Profile> INSTANCE = new ThreadLocal<Profile>()
     {
@@ -45,7 +46,7 @@ public class Profile
         private float totalTimeMillis;
 
         public final int method;
-        public final IntObjectHashMap<MethodStats> callees = new IntObjectHashMap<>(2000);
+        public final HashIntObjMap<MethodStats> callees = HashIntObjMaps.newMutableMap( 100 );
         public MethodStats parent;
 
         public long time; // transient
@@ -83,9 +84,9 @@ public class Profile
 			writer.writeAttribute( "methodNameId" , Integer.toString( method ) );
 			writer.writeAttribute( "invocations" , Long.toString( invocationCount ) );
 			writer.writeAttribute( "totalTime" , Float.toString( totalTimeMillis ) );
-			for ( ObjectCursor<MethodStats> s : callees.values() )
+			for ( MethodStats s : callees.values() )
 			{
-				s.value.save( writer );
+				s.save( writer );
 			}
 			writer.writeEndElement();
 		}
@@ -135,17 +136,7 @@ public class Profile
 
         private MethodStats child(int index)
         {
-        	final List<Integer> keys = new ArrayList<>();
-        	final IntPredicate pred = new IntPredicate() {
-
-				@Override
-				public boolean apply(int value)
-				{
-					keys.add( value );
-					return true;
-				}
-        	};
-        	callees.keys().forEach( pred );
+            final List<Integer> keys = new ArrayList<>( callees.keySet() );
         	Collections.sort( keys );
             final int key = keys.get( index );
             return callees.get(key);
@@ -192,9 +183,9 @@ public class Profile
         public float getSumTotalChildTimeMillis() 
         {
             float result = 0;
-            for ( ObjectCursor<MethodStats> i : callees.values() ) 
+            for ( MethodStats i : callees.values() ) 
             {
-                result += i.value.totalTimeMillis;
+                result += i.totalTimeMillis;
             }
             return result; 
         }
@@ -390,10 +381,9 @@ public class Profile
 			writer.writeStartElement("profilingResults");  // <profilingResults>
 
 			writer.writeStartElement("methodNames"); // <methodNames>
-			for ( IntCursor entry : ID_TO_METHOD_NAME.keys() )
+			for ( Integer id : ID_TO_METHOD_NAME.keySet() )
 			{
-				final int id = entry.value;
-				final String name = ID_TO_METHOD_NAME.get( id );
+				final String name = ID_TO_METHOD_NAME.get( id.intValue() );
 				writer.writeStartElement("methodName"); // <methodName...>
 				writer.writeAttribute( "id" , Integer.toString(id) );
 				writer.writeAttribute( "name" , name );

@@ -6,8 +6,6 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.carrotsearch.hppc.cursors.ObjectCursor;
-
 import de.codesourcery.toyprofiler.Profile.MethodStats;
 import javafx.application.Application;
 import javafx.beans.property.ReadOnlyStringWrapper;
@@ -227,9 +225,9 @@ public class Viewer extends Application {
     private ITreeNode createTreeNodes(MethodStats method) 
     {
         final MyTreeNode node = new MyTreeNode( method );
-        for ( ObjectCursor<MethodStats> entry : method.callees.values() ) 
+        for ( MethodStats entry : method.callees.values() ) 
         {
-            node.addChild( createTreeNodes( entry.value ) );
+            node.addChild( createTreeNodes( entry ) );
         }
         return node;
     }

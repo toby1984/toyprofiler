@@ -10,8 +10,12 @@
   <name>toyprofiler-profiler</name>
   <dependencies>
     <dependency>
-      <groupId>com.carrotsearch</groupId>
-      <artifactId>hppc</artifactId>
+      <groupId>net.openhft</groupId>
+      <artifactId>koloboke-impl-jdk8</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>net.openhft</groupId>
+      <artifactId>koloboke-api-jdk8</artifactId>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
