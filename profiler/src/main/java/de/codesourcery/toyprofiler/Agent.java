@@ -26,6 +26,8 @@ public class Agent
 {
 	protected static final boolean DEBUG_TRANSFORM = true;
 	protected static final boolean DEBUG_PRINT_TRANSFORMED = false;
+	
+	protected static final boolean INSERT_DIRECT_JUMP_TO_PROFILER = false;
 
 	protected static final String VALID_ARGS_KEY_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789_-";
 	protected static final String VALID_CLASSNAME1 = "[a-zA-Z]+[a-zA-Z0-9]*";
@@ -279,7 +281,13 @@ public class Agent
 						case Opcodes.DRETURN:
 						case Opcodes.ARETURN:
 							returnOpcode = opcode;
-							visitJumpInsn(Opcodes.GOTO, successfulReturn );
+							if ( INSERT_DIRECT_JUMP_TO_PROFILER )
+							{
+				                 mv.visitMethodInsn(Opcodes.INVOKESTATIC, "de/codesourcery/toyprofiler/Profile", "methodLeft", "()V", false);
+							    super.visitInsn( opcode );
+							} else {
+							    visitJumpInsn(Opcodes.GOTO, successfulReturn );
+							}
 							return;
 					}
 					super.visitInsn( opcode );
@@ -291,9 +299,7 @@ public class Agent
 					mv.visitJumpInsn(Opcodes.GOTO, successfulReturn);
 
 					mv.visitLabel(end);
-//					mv.visitVarInsn(Opcodes.ASTORE, 1);
 					mv.visitMethodInsn(Opcodes.INVOKESTATIC, "de/codesourcery/toyprofiler/Profile", "methodLeft", "()V", false);
-//					mv.visitVarInsn(Opcodes.ALOAD, 1);
 					mv.visitInsn(Opcodes.ATHROW);
 
 					mv.visitLabel(successfulReturn);

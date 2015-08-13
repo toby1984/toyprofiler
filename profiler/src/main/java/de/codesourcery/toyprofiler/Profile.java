@@ -171,14 +171,24 @@ public class Profile
         {
             if ( Math.abs( totalTimeMillis ) < 0.00001 ) 
             {
-                float result = 0;
-                for ( ObjectCursor<MethodStats> i : callees.values() ) 
-                {
-                    result += i.value.totalTimeMillis;
-                }
-                return result; 
+                return getSumTotalChildTimeMillis();
             }
             return totalTimeMillis;
+        }
+        
+        public float getTotalOwnTimeMillis() 
+        {
+            return getTotalTimeMillis() - getSumTotalChildTimeMillis();
+        }
+        
+        public float getSumTotalChildTimeMillis() 
+        {
+            float result = 0;
+            for ( ObjectCursor<MethodStats> i : callees.values() ) 
+            {
+                result += i.value.totalTimeMillis;
+            }
+            return result; 
         }
     }
 
