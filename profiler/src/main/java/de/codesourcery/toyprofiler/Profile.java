@@ -166,6 +166,14 @@ public class Profile
         public long getInvocationCount() {
             return invocationCount;
         }
+        
+        public float getOwnTimeMillis() 
+        {
+            if ( invocationCount == 0 ) {
+                return getTotalOwnTimeMillis();
+            }
+            return getTotalOwnTimeMillis()/invocationCount;
+        }
 
         public float getTotalTimeMillis() 
         {

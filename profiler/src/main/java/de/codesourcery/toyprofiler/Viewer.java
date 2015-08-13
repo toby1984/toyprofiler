@@ -46,15 +46,16 @@ public class Viewer extends Application {
         }
 
         public int getColumnCount() {
-            return 4;
+            return 5;
         }
 
         public String getColumnName(int idx) {
             switch(idx) {
                 case 0: return "Method";
                 case 1: return "Invocations";
-                case 2: return "Total time";
+                case 2: return "Total time (ms)";
                 case 3: return "Percentage";
+                case 4: return "Own time (ms)";
                 default:
                     throw new RuntimeException();
             }
@@ -89,7 +90,9 @@ public class Viewer extends Application {
                     case 2:
                         return format(((MethodStats) node.value()).getTotalTimeMillis());
                     case 3:
-                        return format( ((MethodStats) node.value()).getPercentageOfParentTime() );                        
+                        return format( ((MethodStats) node.value()).getPercentageOfParentTime() );             
+                    case 4:
+                        return format( ((MethodStats) node.value()).getOwnTimeMillis() );       
                     default:
                 }
             } 

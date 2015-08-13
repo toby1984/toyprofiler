@@ -8,6 +8,8 @@ import de.codesourcery.toyprofiler.Methods;
 public class TestApplication implements Methods
 {
     private final Random rnd = new Random();
+    
+    private final Object LOCK = new Object();
 
     public static void main(String[] args) throws InterruptedException
     {
@@ -31,7 +33,7 @@ public class TestApplication implements Methods
 
     public void run()
     {
-        for ( int i = 0 ; i < 10 ; i++ )
+        for ( int i = 0 ; i < 100 ; i++ )
         {
             method1();
         }
@@ -61,7 +63,12 @@ public class TestApplication implements Methods
 
     private boolean method2()
     {
-        return rnd.nextBoolean();
+        do {
+            synchronized( LOCK ) 
+            {
+                return rnd.nextBoolean();
+            }
+        } while ( false );
     }
 
     private void method3()
@@ -74,6 +81,6 @@ public class TestApplication implements Methods
 
     private void method4()
     {
-       sleep(40);
+       sleep(10);
     }
 }
