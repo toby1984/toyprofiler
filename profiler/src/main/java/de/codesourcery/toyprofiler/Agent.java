@@ -1,5 +1,7 @@
 package de.codesourcery.toyprofiler;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.PrintWriter;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
@@ -32,29 +34,30 @@ public class Agent
 	protected static long stringIndex;
 	private static ClassMatcher[] includedClasses = new ClassMatcher[0];
 	private static ClassMatcher[] excludedClasses = new ClassMatcher[0];
+	
+	private static File outputFile;
 
 	protected static AtomicInteger uniqueID = new AtomicInteger(0);
 
 	public static void premain(String agentArgs, Instrumentation inst)
 	{
 		System.out.println("Profiling agent V1 loaded");
-		final Arguments arguments = new Arguments(agentArgs);
+		
+		parseArguments(agentArgs);
 
-		final String[] patterns = arguments.get("pattern").split(",");
-		includedClasses = Arrays.stream( patterns ).map( ClassMatcher::new ).collect( Collectors.toList() ).toArray( new ClassMatcher[0] );
-
-		if ( arguments.hasKey( "excluded" ) ) {
-			final String[] tmp = arguments.get("excluded").split(",");
-			excludedClasses = Arrays.stream( tmp ).map( ClassMatcher::new ).collect( Collectors.toList() ).toArray( new ClassMatcher[0] );
-		}
-
-		System.out.println("Matching "+includedClasses.length+" class include patterns:");
-		Arrays.stream( includedClasses ).forEach( System.out::println );
-
-		System.out.println("Matching "+excludedClasses.length+" exclude patterns:");
-		Arrays.stream( excludedClasses ).forEach( System.out::println );
-
-		Runtime.getRuntime().addShutdownHook( new Thread( () -> System.out.println( Profile.printAllThreads() ) ) );
+		Runtime.getRuntime().addShutdownHook( new Thread( () -> 
+		{ 
+		    System.out.println( Profile.printAllThreads() );
+		    if ( outputFile != null ) 
+		    {
+		        System.out.println("Saving profiling results to "+outputFile.getAbsolutePath());
+		        try {
+		            Profile.save( new FileOutputStream( outputFile ) );
+		        } catch(Exception e) {
+		            e.printStackTrace();
+		        }
+		    }
+		}) );
 
 		inst.addTransformer( new ClassFileTransformer()
 		{
@@ -125,6 +128,28 @@ public class Agent
 			}
 		});
 	}
+
+    private static void parseArguments(String agentArgs) {
+        final Arguments arguments = new Arguments(agentArgs);
+		
+		if ( arguments.hasKey("file" ) ) {
+		    outputFile = new File( arguments.get("file" ) );
+		}
+
+		final String[] patterns = arguments.get("pattern").split(",");
+		includedClasses = Arrays.stream( patterns ).map( ClassMatcher::new ).collect( Collectors.toList() ).toArray( new ClassMatcher[0] );
+
+		if ( arguments.hasKey( "excluded" ) ) {
+			final String[] tmp = arguments.get("excluded").split(",");
+			excludedClasses = Arrays.stream( tmp ).map( ClassMatcher::new ).collect( Collectors.toList() ).toArray( new ClassMatcher[0] );
+		}
+
+		System.out.println("Matching "+includedClasses.length+" class include patterns:");
+		Arrays.stream( includedClasses ).forEach( System.out::println );
+
+		System.out.println("Matching "+excludedClasses.length+" exclude patterns:");
+		Arrays.stream( excludedClasses ).forEach( System.out::println );
+    }
 
 	protected static final class MyWriter extends ClassVisitor
 	{

@@ -41,11 +41,11 @@ public class Profile
 
     public static final class MethodStats
     {
-        public long invocationCount;
-        public float totalTimeMillis;
+        private long invocationCount;
+        private float totalTimeMillis;
 
         public final int method;
-        private final IntObjectHashMap<MethodStats> callees = new IntObjectHashMap<>(2000);
+        public final IntObjectHashMap<MethodStats> callees = new IntObjectHashMap<>(2000);
         public MethodStats parent;
 
         public long time; // transient
@@ -59,6 +59,15 @@ public class Profile
         {
             this.method = method;
             this.parent = parent;
+        }
+        
+        public float getPercentageOfParentTime() 
+        {
+            if ( parent == null ) {
+                return 100f;
+            }
+            final float parentTime = parent.getTotalTimeMillis();
+            return 100f*( totalTimeMillis / parentTime );
         }
 
         public MethodStats(XMLStreamReader reader) throws XMLStreamException
@@ -152,6 +161,24 @@ public class Profile
             {
                 print(prefix + (isTail ?"    " : "│   "), node.child( node.getChildCount() - 1), true,buffer);
             }
+        }
+
+        public long getInvocationCount() {
+            return invocationCount;
+        }
+
+        public float getTotalTimeMillis() 
+        {
+            if ( Math.abs( totalTimeMillis ) < 0.00001 ) 
+            {
+                float result = 0;
+                for ( ObjectCursor<MethodStats> i : callees.values() ) 
+                {
+                    result += i.value.totalTimeMillis;
+                }
+                return result; 
+            }
+            return totalTimeMillis;
         }
     }
 
