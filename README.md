@@ -10,8 +10,8 @@ __Use at your own risk__ *I wrote this in a few hours and especially the bytecod
 
 # Requirements
 
-- JDK >= 1.8
-- Maven 3.x
+* JDK >= 1.8
+* Maven 3.x
 
 # Building
 
@@ -28,11 +28,13 @@ The following line will instrument all classes within the 'my.package' package a
 
 java -javaagent:profiler/target/toyprofiler.jar=include=my.package.*,file=profile.xml  my.package.Main
 
-Additional command-line options:
+Available agent parameters:
 
- exclude = Comma-separated list of fully-qualified classnames (or package names ending with a '*' to perform prefix matching)
- debug = true,false (enable debug output)
- print = true,false (dump profiling statistics as ascii art after the program terminates)
+ * file = XML file to write profiling data to
+ * include = Comma-separated list of fully-qualified classnames or package names ending with a '*' (to perform prefix matching)
+ * exclude = Comma-separated list of fully-qualified classnames or package names ending with a '*' (to perform prefix matching)
+ * debug = true,false (enable debug output)
+ * print = true,false (dump profiling statistics as ascii art after the program terminates)
 
 # Viewing the results
 
