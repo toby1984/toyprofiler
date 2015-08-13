@@ -6,7 +6,7 @@ This is a little toy profiler that gathers method execution times by bytecode in
 
 This is a Java-only JVM agent (=no native code) that - depending on which parts of your application you instrument - may introduce a *massive* slowdown.
 
-*Use at your own risk* I wrote this in a few hours and especially the bytecode generation is really crude and might break your code ... *if you're using this on production code, you're crazy.*
+__Use at your own risk__ *I wrote this in a few hours and especially the bytecode generation is really crude and might break your code* ... __if you're using this on production code, you're crazy.__
 
 # Requirements
 
