@@ -2,6 +2,8 @@
 
 This is a little toy profiler that gathers method execution times by bytecode instrumentation and generates an XML file containing the execution statistics when the program terminates. It also comes with a toy JavaFX viewer application to visualize the profiling results.
 
+![Image](https://raw.githubusercontent.com/toby1984/toyprofiler/master/screenshot.png)
+
 This is a Java-only JVM agent (=no native code) that - depending which parts of your application you instrument - may introduce a *massive* slowdown.
 
 # Requirements
