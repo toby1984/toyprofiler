@@ -28,11 +28,6 @@ public class Viewer extends Application {
         Application.launch(args);
     }
 
-    @Override
-    public void init() throws Exception {
-        super.init();
-    }
-
     protected static final class MyTreeModel 
     {
         public ITreeNode root;
@@ -163,9 +158,19 @@ public class Viewer extends Application {
     @Override
     public void start(Stage stage)
     {
+        final Parameters params = getParameters();
+        final List<String> parameters = params.getRaw();
+        
+        if ( parameters.size() != 1 ) {
+            throw new RuntimeException("Bad command line arguments, expected exactly one argument (XML file to load)");
+        }
+        
+        final String fileToLoad = parameters.get(0);
+        
         final List<Profile> profiles;
         try {
-            profiles = Profile.load( new FileInputStream("/home/tobi/tmp/profile.xml"));
+            FileInputStream in = new FileInputStream( fileToLoad );
+            profiles = Profile.load( in);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -173,7 +178,7 @@ public class Viewer extends Application {
         final TreeTableView<ITreeNode> treeTable = createTreeTableView( profiles );
 
         treeTable.setPrefSize( 2000, 2000 );
-        stage.setTitle("Profiling results");
+        stage.setTitle("Profiling results: "+fileToLoad);
 
         stage.setResizable(true);
         

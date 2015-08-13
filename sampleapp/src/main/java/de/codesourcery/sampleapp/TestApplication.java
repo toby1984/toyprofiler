@@ -28,7 +28,6 @@ public class TestApplication implements Methods
             t.start();
         }
         latch.await();
-        System.out.println("main() returned");
     }
 
     public void run()

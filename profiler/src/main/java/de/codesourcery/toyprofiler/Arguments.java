@@ -57,6 +57,12 @@ final class Arguments {
             }
         }
     }
+    
+    public boolean getBoolean(String key,boolean defaultValue) 
+    {
+        String value = get(key,null);
+        return value != null ? Boolean.parseBoolean( value ) : defaultValue;
+    }
 
     public Set<String> keys() {
         return parameters.keySet();

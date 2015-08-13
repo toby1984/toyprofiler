@@ -24,10 +24,11 @@ import org.objectweb.asm.util.TraceClassVisitor;
 
 public class Agent
 {
-	protected static final boolean DEBUG_TRANSFORM = true;
-	protected static final boolean DEBUG_PRINT_TRANSFORMED = false;
+	protected static boolean DEBUG_TRANSFORM = false;
+	protected static boolean DEBUG_PRINT_TRANSFORMED = false;
+	protected static boolean DEBUG_DUMP_STATISTICS = false;
 	
-	protected static final boolean INSERT_DIRECT_JUMP_TO_PROFILER = false;
+	protected static boolean INSERT_DIRECT_JUMP_TO_PROFILER = false;
 
 	protected static final String VALID_ARGS_KEY_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789_-";
 	protected static final String VALID_CLASSNAME1 = "[a-zA-Z]+[a-zA-Z0-9]*";
@@ -43,13 +44,15 @@ public class Agent
 
 	public static void premain(String agentArgs, Instrumentation inst)
 	{
-		System.out.println("Profiling agent V1 loaded");
+		System.out.println("Profiling agent loaded");
 		
 		parseArguments(agentArgs);
 
 		Runtime.getRuntime().addShutdownHook( new Thread( () -> 
 		{ 
-		    System.out.println( Profile.printAllThreads() );
+		    if ( DEBUG_DUMP_STATISTICS ) {
+		        System.out.println( Profile.printAllThreads() );
+		    }
 		    if ( outputFile != null ) 
 		    {
 		        System.out.println("Saving profiling results to "+outputFile.getAbsolutePath());
@@ -113,7 +116,9 @@ public class Agent
 					final MyWriter writer = new MyWriter(Opcodes.ASM5,wrappedWriter);
 					classReader.accept( writer , 0 );
 					final byte[] result = wrappedWriter.toByteArray();
-					System.out.println( clazz.length+" bytes in , "+result.length+" bytes out");
+					if ( DEBUG_TRANSFORM ) {
+					    System.out.println( clazz.length+" bytes in , "+result.length+" bytes out");
+					}
 					return result;
 				}
 				catch(Throwable t)
@@ -137,12 +142,15 @@ public class Agent
 		if ( arguments.hasKey("file" ) ) {
 		    outputFile = new File( arguments.get("file" ) );
 		}
-
+		
+		DEBUG_DUMP_STATISTICS = arguments.getBoolean("print",false);
+		DEBUG_TRANSFORM = arguments.getBoolean("debug",false);
+		
 		final String[] patterns = arguments.get("pattern").split(",");
 		includedClasses = Arrays.stream( patterns ).map( ClassMatcher::new ).collect( Collectors.toList() ).toArray( new ClassMatcher[0] );
 
-		if ( arguments.hasKey( "excluded" ) ) {
-			final String[] tmp = arguments.get("excluded").split(",");
+		if ( arguments.hasKey( "exclude" ) ) {
+			final String[] tmp = arguments.get("exclude").split(",");
 			excludedClasses = Arrays.stream( tmp ).map( ClassMatcher::new ).collect( Collectors.toList() ).toArray( new ClassMatcher[0] );
 		}
 

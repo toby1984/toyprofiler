@@ -1,4 +1,4 @@
 Manifest-Version: 1.0
 Premain-Class: de.codesourcery.toyprofiler.Agent
-Main-Class: de.codesourcery.sampleapp.TestApplication
+Main-Class: de.codesourcery.toyprofiler.Viewer
 Can-Retransform-Classes: true
