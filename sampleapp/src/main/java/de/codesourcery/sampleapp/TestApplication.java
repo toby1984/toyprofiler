@@ -3,9 +3,7 @@ package de.codesourcery.sampleapp;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 
-import de.codesourcery.toyprofiler.Methods;
-
-public class TestApplication implements Methods
+public class TestApplication 
 {
     private final Random rnd = new Random();
     

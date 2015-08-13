@@ -146,7 +146,7 @@ public class Agent
 		DEBUG_DUMP_STATISTICS = arguments.getBoolean("print",false);
 		DEBUG_TRANSFORM = arguments.getBoolean("debug",false);
 		
-		final String[] patterns = arguments.get("pattern").split(",");
+		final String[] patterns = arguments.get("include").split(",");
 		includedClasses = Arrays.stream( patterns ).map( ClassMatcher::new ).collect( Collectors.toList() ).toArray( new ClassMatcher[0] );
 
 		if ( arguments.hasKey( "exclude" ) ) {

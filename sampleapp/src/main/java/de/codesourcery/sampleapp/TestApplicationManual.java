@@ -6,10 +6,9 @@ import java.io.IOException;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 
-import de.codesourcery.toyprofiler.Methods;
 import de.codesourcery.toyprofiler.Profile;
 
-public class TestApplicationManual implements Methods
+public class TestApplicationManual
 {
     private final Random rnd = new Random();
 
