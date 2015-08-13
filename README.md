@@ -4,7 +4,9 @@ This is a little toy profiler that gathers method execution times by bytecode in
 
 ![Image](https://raw.githubusercontent.com/toby1984/toyprofiler/master/screenshot.png)
 
-This is a Java-only JVM agent (=no native code) that - depending which parts of your application you instrument - may introduce a *massive* slowdown.
+This is a Java-only JVM agent (=no native code) that - depending on which parts of your application you instrument - may introduce a *massive* slowdown.
+
+*Use at your own risk* I wrote this in a few hours and especially the bytecode generation is really crude and might break your code ... *if you're using this on production code, you're crazy.*
 
 # Requirements
 
@@ -15,9 +17,10 @@ This is a Java-only JVM agent (=no native code) that - depending which parts of 
 
 Running
 
-mvn clean package
+    mvn clean package
 
-on the top-level project will generate a self-executable JAR in profiler/target/toyprofiler.jar
+on the top-level project will generate a JAR in profiler/target/toyprofiler.jar
+The JAR contains both the JVM agent and the viewer application (the jar is self-executable , java -jar toyprofiler.jar will run the viewer).
 
 # Example profiler usage
 
