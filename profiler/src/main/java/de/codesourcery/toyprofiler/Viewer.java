@@ -27,7 +27,9 @@ public class Viewer extends Application {
     {
         Application.launch(args);
     }
-
+    
+    protected static final DecimalFormat DF = new DecimalFormat("##########0.0####");
+    
     protected static final class MyTreeModel 
     {
         public ITreeNode root;
@@ -54,12 +56,6 @@ public class Viewer extends Application {
                 default:
                     throw new RuntimeException();
             }
-        }
-        
-        private final DecimalFormat DF = new DecimalFormat("##########0.0####");
-
-        private String format(float value) {
-            return DF.format( value );
         }
         
         public String getValue(ITreeNode node,int column) 
@@ -105,7 +101,7 @@ public class Viewer extends Application {
 
         private TreeItem<ITreeNode> createTreeItem(ITreeNode node) 
         {
-            TreeItem<ITreeNode> result = new TreeItem<>( node );
+            final TreeItem<ITreeNode> result = new TreeItem<>( node );
             for ( ITreeNode child : node.children() ) {
                 result.getChildren().add( createTreeItem( child ) );
             }
@@ -113,11 +109,9 @@ public class Viewer extends Application {
         }
     }
 
-    protected interface ITreeNode {
-
+    protected interface ITreeNode
+    {
         public List<ITreeNode> children();
-
-        public int childCount();
 
         public void addChild(ITreeNode node);
 
@@ -145,16 +139,15 @@ public class Viewer extends Application {
         }
 
         @Override
-        public int childCount() {
-            return children.size();
-        }
-
-        @Override
         public void addChild(ITreeNode node) {
             children.add( node );
         }
     }
 
+    protected static String format(float value) {
+        return DF.format( value );
+    }
+    
     @Override
     public void start(Stage stage)
     {
@@ -195,7 +188,6 @@ public class Viewer extends Application {
 
     private TreeTableView<ITreeNode> createTreeTableView(List<Profile> profiles) 
     {
-        //Creating tree items
         final MyTreeNode rootNode = new MyTreeNode(null);
         for ( Profile p : profiles ) 
         {
@@ -207,19 +199,16 @@ public class Viewer extends Application {
 
         final MyTreeModel model = new MyTreeModel( rootNode );
 
-        //Creating the root element
         final TreeItem<ITreeNode> root = model.toTreeItems();
         root.setExpanded(true);
 
         final TreeTableView<ITreeNode> treeTableView = new TreeTableView<>(root);
 
-        // Create columns
         for ( int i = 0 ; i < model.getColumnCount() ; i++ ) 
         {
             final int columnNo = i;
             final TreeTableColumn<ITreeNode,String> newColumn = new TreeTableColumn<>( model.getColumnName( i ) );
-            newColumn.setPrefWidth(150);
-            //Defining cell content
+            
             newColumn.setCellValueFactory( new Callback<TreeTableColumn.CellDataFeatures<ITreeNode,String>, ObservableValue<String>>() {
 
                 @Override
@@ -231,7 +220,6 @@ public class Viewer extends Application {
             treeTableView.getColumns().add(newColumn);
         }
 
-        //Creating a tree table view
         treeTableView.setShowRoot(false);
         return treeTableView;
     }

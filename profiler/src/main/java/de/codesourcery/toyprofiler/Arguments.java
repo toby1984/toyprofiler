@@ -4,8 +4,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-final class Arguments {
-
+public final class Arguments 
+{
+    private static final String VALID_ARGS_KEY_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789_-";
+    
     private final Map<String,String> parameters = new HashMap<>();
 
     Arguments(String agentArgs)
@@ -31,7 +33,7 @@ final class Arguments {
                     {
                         inKey = true;
                         int j = value.length()-1;
-                        for ( ; j >= 0 && Agent.VALID_ARGS_KEY_CHARS.indexOf( value.charAt(j)  ) != -1; j-- )
+                        for ( ; j >= 0 && VALID_ARGS_KEY_CHARS.indexOf( value.charAt(j)  ) != -1; j-- )
                         {
                         }
                         if ( j > 0 )

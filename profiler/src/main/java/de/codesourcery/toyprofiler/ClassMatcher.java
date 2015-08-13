@@ -1,7 +1,12 @@
 package de.codesourcery.toyprofiler;
 
-final class ClassMatcher
+import java.util.regex.Pattern;
+
+public final class ClassMatcher
 {
+    private static final String VALID_CLASSNAME1 = "[a-zA-Z]+[a-zA-Z0-9]*";
+    private static final Pattern VALID_CLASSNAME = Pattern.compile("^"+VALID_CLASSNAME1+"([\\/\\$]{1}"+VALID_CLASSNAME1+")*$");
+    
     private final String pattern;
     private final boolean isWildcard;
 
@@ -18,7 +23,7 @@ final class ClassMatcher
             pattern = pattern.substring(0, pattern.length()-1 );
         }
         this.pattern = pattern.replaceAll("\\.","/");
-        if ( ! Agent.VALID_CLASSNAME.matcher( this.pattern ).matches() ) {
+        if ( ! VALID_CLASSNAME.matcher( this.pattern ).matches() ) {
             throw new IllegalArgumentException("Invalid class name pattern: '"+inputPattern+"'");
         }
     }

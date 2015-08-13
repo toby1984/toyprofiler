@@ -10,7 +10,6 @@ import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.objectweb.asm.Attribute;
@@ -29,10 +28,6 @@ public class Agent
 	protected static boolean DEBUG_DUMP_STATISTICS = false;
 	
 	protected static boolean INSERT_DIRECT_JUMP_TO_PROFILER = false;
-
-	protected static final String VALID_ARGS_KEY_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789_-";
-	protected static final String VALID_CLASSNAME1 = "[a-zA-Z]+[a-zA-Z0-9]*";
-	protected static final Pattern VALID_CLASSNAME = Pattern.compile("^"+VALID_CLASSNAME1+"([\\/\\$]{1}"+VALID_CLASSNAME1+")*$");
 
 	protected static long stringIndex;
 	private static ClassMatcher[] includedClasses = new ClassMatcher[0];
