@@ -8,8 +8,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Stack;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.IntConsumer;
-import java.util.function.IntPredicate;
 import java.util.stream.Collectors;
 
 import javax.xml.namespace.QName;
@@ -19,7 +17,6 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import javax.xml.stream.XMLStreamWriter;
 
-import net.openhft.koloboke.collect.IntCursor;
 import net.openhft.koloboke.collect.map.hash.HashIntObjMap;
 import net.openhft.koloboke.collect.map.hash.HashIntObjMaps;
 
@@ -39,6 +36,11 @@ public class Profile
             return profile;
         }
     };
+
+    public interface IMethodStatsVisitor
+    {
+    	public void visit(MethodStats stats,int depth);
+    }
 
     public static final class MethodStats
     {
@@ -61,8 +63,37 @@ public class Profile
             this.method = method;
             this.parent = parent;
         }
-        
-        public float getPercentageOfParentTime() 
+
+        public String getMethodName() {
+        	return getRawMethodName().split("\\|")[1];
+        }
+
+        public String getClassName() {
+        	return getRawMethodName().split("\\|")[0];
+        }
+
+        public String getSimpleClassName()
+        {
+        	final String[] parts = getClassName().split("/");
+        	return parts[ parts.length -1 ];
+        }
+
+        public String getMethodSignature() {
+        	return getRawMethodName().split("\\|")[2];
+        }
+
+        public void visit(IMethodStatsVisitor visitor)
+        {
+        	visit( visitor , 0 );
+        }
+
+        private void visit(IMethodStatsVisitor visitor,int depth)
+        {
+        	visitor.visit( this , depth );
+        	callees.values().forEach( value -> value.visit( visitor , depth+1 ) );
+        }
+
+        public float getPercentageOfParentTime()
         {
             if ( parent == null ) {
                 return 100f;
@@ -157,8 +188,8 @@ public class Profile
         public long getInvocationCount() {
             return invocationCount;
         }
-        
-        public float getOwnTimeMillis() 
+
+        public float getOwnTimeMillis()
         {
             if ( invocationCount == 0 ) {
                 return getTotalOwnTimeMillis();
@@ -166,28 +197,28 @@ public class Profile
             return getTotalOwnTimeMillis()/invocationCount;
         }
 
-        public float getTotalTimeMillis() 
+        public float getTotalTimeMillis()
         {
-            if ( Math.abs( totalTimeMillis ) < 0.00001 ) 
+            if ( Math.abs( totalTimeMillis ) < 0.00001 )
             {
                 return getSumTotalChildTimeMillis();
             }
             return totalTimeMillis;
         }
-        
-        public float getTotalOwnTimeMillis() 
+
+        public float getTotalOwnTimeMillis()
         {
             return getTotalTimeMillis() - getSumTotalChildTimeMillis();
         }
-        
-        public float getSumTotalChildTimeMillis() 
+
+        public float getSumTotalChildTimeMillis()
         {
             float result = 0;
-            for ( MethodStats i : callees.values() ) 
+            for ( MethodStats i : callees.values() )
             {
                 result += i.totalTimeMillis;
             }
-            return result; 
+            return result;
         }
     }
 
