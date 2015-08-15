@@ -1,4 +1,4 @@
-package de.codesourcery.toyprofiler;
+package de.codesourcery.toyprofiler.util;
 
 import java.util.regex.Pattern;
 

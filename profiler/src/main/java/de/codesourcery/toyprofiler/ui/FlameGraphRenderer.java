@@ -1,4 +1,4 @@
-package de.codesourcery.toyprofiler;
+package de.codesourcery.toyprofiler.ui;
 
 import java.awt.Color;
 import java.awt.FontMetrics;
@@ -10,6 +10,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import de.codesourcery.toyprofiler.Profile.MethodStats;
+import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.RectangularRegion;
 
 public class FlameGraphRenderer<T>
 {
@@ -27,7 +30,7 @@ public class FlameGraphRenderer<T>
 
 	private final IDataProvider<T> dataProvider;
 
-	private final List<RectangularRegion<T>> regions = new ArrayList<>();
+	private List<RectangularRegion<T>> regions = new ArrayList<>(1000);
 
 	public interface IVisitor<T>
 	{
@@ -115,6 +118,18 @@ public class FlameGraphRenderer<T>
 			}
 			return null;
 		}
+
+        public RectangularRegion<T> find(T stats) 
+        {
+            for (int i = 0,len = regions.size() ; i < len ; i++)
+            {
+                final RectangularRegion<T> r = regions.get(i);
+                if ( r.stats == stats ) {
+                    return r; 
+                }
+            }
+            return null;
+        }
 	}
 
 	public FlameGraphRenderer(IDataProvider<T> provider)
@@ -147,7 +162,7 @@ public class FlameGraphRenderer<T>
 		this.doRender = true;
 		this.maxDepth = calcMaxDepth( root );
 		this.height = height;
-		this.regions.clear();
+		this.regions = new ArrayList<>(1000);
 		this.image = new BufferedImage(width,height,BufferedImage.TYPE_INT_RGB );
 		if ( this.graphics != null )
 		{
@@ -194,8 +209,20 @@ public class FlameGraphRenderer<T>
 		maxDepth = visibleDepth;
 		onePass(root,width,height);
 
-		return new FlameGraph<T>(image,regions);
+		final FlameGraph<T> result = new FlameGraph<T>(image,regions);
+		
+        // release memory just in case someone rendered a super-big graph
+		cleanup();
+		return result;
 	}
+
+    private void cleanup() 
+    {
+		this.regions.clear();
+		this.image = null;
+		this.graphics.dispose();
+		this.graphics = null;
+    }
 
 	private boolean isVisible(RectangularRegion<T> r)
 	{
@@ -230,15 +257,16 @@ public class FlameGraphRenderer<T>
 		final double totalTime = dataProvider.getValue( parent ) ; // parent.getTotalTimeMillis()
 		final List<T> sorted = dataProvider.getChildren( parent ) ; // TODO: Maybe sort ??
 
-		int sumWidth = 0;
-		for ( T child : sorted )
-		{
-			final double percentageThisNode= dataProvider.getValue( child ) / totalTime;
-			final int w = (int) ( rect.width * percentageThisNode);
-			sumWidth += w;
-		}
-		final int offset = (rect.width - sumWidth)/2;
-		int x = rect.x+offset;
+//		int sumWidth = 0;
+//		for ( T child : sorted )
+//		{
+//			final double percentageThisNode= dataProvider.getValue( child ) / totalTime;
+//			final int w = (int) ( rect.width * percentageThisNode);
+//			sumWidth += w;
+//		}
+//		final int offset = (rect.width - sumWidth)/2;
+//		int x = rect.x+offset;
+		int x = rect.x;
 		final int y = height-(currentDepth+1)*heightPerRow;
 
 		for ( T child : sorted )

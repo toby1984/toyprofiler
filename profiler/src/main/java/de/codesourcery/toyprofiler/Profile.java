@@ -3,9 +3,14 @@ package de.codesourcery.toyprofiler;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Stack;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -17,6 +22,8 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import javax.xml.stream.XMLStreamWriter;
 
+import de.codesourcery.toyprofiler.Profile.MethodStats;
+import de.codesourcery.toyprofiler.util.ParameterMap;
 import net.openhft.koloboke.collect.map.hash.HashIntObjMap;
 import net.openhft.koloboke.collect.map.hash.HashIntObjMaps;
 
@@ -45,43 +52,44 @@ public class Profile
     public static final class MethodStats
     {
         private long invocationCount;
+        private long time; // transient
         private float totalTimeMillis;
 
-        public final int method;
-        public final HashIntObjMap<MethodStats> callees = HashIntObjMaps.newMutableMap( 100 );
-        public MethodStats parent;
-
-        public long time; // transient
+        private final int method;
+        private final HashIntObjMap<MethodStats> callees = HashIntObjMaps.newMutableMap( 100 );
+        private MethodStats parent;
 
         public MethodStats(int method)
         {
             this.method = method;
         }
-
+        
         public MethodStats(int method,MethodStats parent)
         {
             this.method = method;
             this.parent = parent;
+        }        
+        
+        public void setInvocationCount(long invocationCount) {
+            this.invocationCount = invocationCount;
         }
-
-        public String getMethodName() {
-        	return getRawMethodName().split("\\|")[1];
+        
+        public void setTotalTimeMillis(float totalTimeMillis) {
+            this.totalTimeMillis = totalTimeMillis;
         }
-
-        public String getClassName() {
-        	return getRawMethodName().split("\\|")[0];
+        
+        public int getMethodId() {
+            return method;
         }
-
-        public String getSimpleClassName()
-        {
-        	final String[] parts = getClassName().split("/");
-        	return parts[ parts.length -1 ];
+        
+        public MethodStats getParent() {
+            return parent;
         }
-
-        public String getMethodSignature() {
-        	return getRawMethodName().split("\\|")[2];
+        
+        public HashIntObjMap<MethodStats> getCallees() {
+            return callees;
         }
-
+   
         public void visit(IMethodStatsVisitor visitor)
         {
         	visit( visitor , 0 );
@@ -133,58 +141,22 @@ public class Profile
         	totalTimeMillis += (System.nanoTime() - time ) / 1000_000f;
         }
 
-        @Override
-        public String toString() {
-            final StringBuilder buffer = new StringBuilder();
-            print( this, buffer );
-            return buffer.toString();
-        }
-
-        public void print(MethodStats node,StringBuilder buffer) {
-            print("", node , true,buffer);
-        }
-
-        private int getChildCount() {
+        public int getChildCount() {
             return callees.size();
         }
 
-        private boolean hasChildren() {
+        public boolean hasChildren() {
             return getChildCount() != 0;
         }
 
-        private String toText()
-        {
-            final float avgTime = totalTimeMillis / invocationCount;
-            final String sAvgTime = ""+( avgTime < 1 ? avgTime*1000000f+" ns" : avgTime+" ms" );
-            final String sTotalTime = ""+( totalTimeMillis < 1 ? totalTimeMillis *1000000f+" ns" : totalTimeMillis+" ms" );
-            return getRawMethodName()+" | invocations: "+invocationCount+" | avg. time: "+sAvgTime+" | total time: "+sTotalTime;
-        }
-
-        public String getRawMethodName() {
-        	final String name =  ID_TO_METHOD_NAME.get( this.method );
-        	return name == null ? "<unknown method>" : name;
-        }
-
-        private MethodStats child(int index)
+        public MethodStats child(int index)
         {
             final List<Integer> keys = new ArrayList<>( callees.keySet() );
         	Collections.sort( keys );
             final int key = keys.get( index );
             return callees.get(key);
         }
-
-        private void print(String prefix, MethodStats node, boolean isTail,StringBuilder buffer)
-        {
-            buffer.append(prefix + (isTail ? "└── " : "├── ") + node.toText() ).append("\n");
-            for (int i = 0; i < node.getChildCount() - 1; i++) {
-                print(prefix + (isTail ? "    " : "│   "), node.child(i) , false,buffer);
-            }
-            if ( node.hasChildren() )
-            {
-                print(prefix + (isTail ?"    " : "│   "), node.child( node.getChildCount() - 1), true,buffer);
-            }
-        }
-
+        
         public long getInvocationCount() {
             return invocationCount;
         }
@@ -205,6 +177,10 @@ public class Profile
             }
             return totalTimeMillis;
         }
+        
+        public float getTotalTimeMillisRaw() {
+            return totalTimeMillis;
+        }
 
         public float getTotalOwnTimeMillis()
         {
@@ -220,14 +196,30 @@ public class Profile
             }
             return result;
         }
+
+        public void setParent(MethodStats parent) {
+            this.parent = parent;
+        }
     }
 
-    private final String currentThread;
-
+    private final String threadName;
+    private long creationTime = System.currentTimeMillis();
+    private String metaData;
+    
     private MethodStats topLevelMethod;
+    
     private MethodStats currentMethod;
 
     protected static final String readAttribute(String attrName,XMLStreamReader reader)
+    {
+        final String result = readAttribute( attrName , null , reader );
+        if ( result == null ) {
+            throw new RuntimeException("Internal error, <"+reader.getLocalName()+"/> tag lacks '"+attrName+"' attribute");
+        }
+        return result;
+    }
+    
+    protected static final String readAttribute(String attrName,String defaultValue,XMLStreamReader reader)
     {
     	String value=null;
     	for ( int i = 0 , len = reader.getAttributeCount() ; i < len ; i++) {
@@ -239,15 +231,18 @@ public class Profile
     	}
     	if ( value == null || value.trim().length() == 0 )
     	{
-    		throw new RuntimeException("Internal error, <"+reader.getLocalName()+"/> tag lacks '"+attrName+"' attribute");
+    	    return defaultValue;
     	}
     	return value;
     }
 
     public Profile(XMLStreamReader reader) throws XMLStreamException
     {
-    	this.currentThread=readAttribute("threadName",reader);
-    	System.out.println("Loading profile '"+currentThread+"'");
+    	this.threadName=readAttribute("threadName",reader);
+    	this.creationTime= Long.parseLong( readAttribute("creationTime" , "0" , reader ) );
+        this.metaData = readAttribute("metaData",null,reader);
+        
+    	System.out.println("Loading profile '"+threadName+"'");
     	final Stack<MethodStats> stack = new Stack<>();
     	while ( reader.hasNext() )
     	{
@@ -281,10 +276,19 @@ public class Profile
     		}
     	}
     }
+    
     public Profile(Thread currentThread) {
-        this.currentThread = currentThread.getName();
+        this( currentThread.getName() );
+    }
+    
+    public Profile(String threadName) {
+        this.threadName = threadName;
     }
 
+    public void setCreationTime(long creationTime) {
+        this.creationTime = creationTime;
+    }
+    
     public static void reset()
     {
   		ID_TO_METHOD_NAME.clear();
@@ -349,14 +353,17 @@ public class Profile
     public String toString()
     {
         if ( topLevelMethod == null ) {
-            return "Thread[ "+currentThread+"]\n<no top-level method>";
+            return "Thread[ "+threadName+"]\n<no top-level method>";
         }
-        return "Thread[ "+currentThread+"]\n"+topLevelMethod.toString();
+        return "Thread[ "+threadName+"]\n"+topLevelMethod.toString();
     }
 
-    public static List<Profile> load(InputStream in) throws IOException
+    public static ProfileContainer load(InputStream in) throws IOException
     {
     	final List<Profile> result = new ArrayList<>();
+    	
+    	final HashIntObjMap<String> methodNameMap = HashIntObjMaps.newMutableMap( 2000 );
+    	
     	XMLStreamReader reader = null;
     	try
     	{
@@ -368,12 +375,11 @@ public class Profile
 				switch( reader.next() )
 				{
 					case XMLStreamReader.START_ELEMENT:
-//						System.out.println("<"+reader.getLocalName()+">");
 						if ( "methodName".equals( reader.getLocalName() ) )
 						{
 							final int id = Integer.parseInt( readAttribute( "id" , reader ) );
 							final String name = readAttribute( "name" , reader );
-							ID_TO_METHOD_NAME.put(id,name);
+							methodNameMap.put(id,name);
 						}
 						else if ( "profile".equals( reader.getLocalName() ) )
 						{
@@ -381,7 +387,6 @@ public class Profile
 						}
 						break;
 					case XMLStreamReader.END_ELEMENT:
-//						System.out.println("</"+reader.getLocalName()+">");
 						break;
 				}
 			}
@@ -397,7 +402,7 @@ public class Profile
 				try { reader.close(); } catch(XMLStreamException e) { /* ok */ }
 			}
 		}
-    	return result;
+    	return new ProfileContainer( result , methodNameMap );
     }
 
     public static void save(OutputStream out) throws IOException
@@ -426,7 +431,7 @@ public class Profile
 
 			for ( Profile p : PROFILES_BY_THREAD.values() )
 			{
-				System.out.println("Writing profile "+p.currentThread+" ...");
+				System.out.println("Writing profile "+p.threadName+" ...");
 				p.save(writer);
 			}
 
@@ -453,7 +458,12 @@ public class Profile
 	private void save(XMLStreamWriter writer) throws XMLStreamException
 	{
 		writer.writeStartElement("profile");
-		writer.writeAttribute("threadName" , currentThread );
+		writer.writeAttribute("threadName" , threadName );
+		writer.writeAttribute("creationTime" , Long.toString( creationTime ) );
+		if ( metaData != null ) {
+		    writer.writeAttribute("metaData" , metaData );
+		}
+		
 		if ( topLevelMethod != null )
 		{
 			topLevelMethod.save( writer );
@@ -467,6 +477,56 @@ public class Profile
 	}
 
 	public String getThreadName() {
-		return currentThread;
+		return threadName;
 	}
+	
+	public Optional<ZonedDateTime> getCreationTime() 
+	{
+	    if ( creationTime == 0 ) {
+	        return Optional.empty();
+	    }
+        return Optional.of( ZonedDateTime.ofInstant( Instant.ofEpochMilli( creationTime ) , ZoneId.systemDefault() ) );
+    }
+	
+	public Optional<String> getMetaData() 
+	{
+        return Optional.ofNullable( metaData );
+    }
+	
+	public ParameterMap getMetaDataMap() 
+	{
+	    return new ParameterMap( this.metaData );
+	}
+	
+	public void mergeMetaData(ParameterMap toMerge) {
+	    
+	    Map<String,String> current = getMetaDataMap().toMap();
+	    current.putAll( toMerge.toMap() );
+	    if ( current.isEmpty() ) {
+	        setMetaData( (String) null );
+	    } else {
+	        setMetaData( new ParameterMap( current ).toString() );
+	    }
+	}
+	
+    public void setMetaData(ParameterMap map) 
+    {
+        if ( map == null ) {
+            setMetaData( (String) null );
+        } else {
+            setMetaData( map.toString() );
+        }
+    }	
+	
+	public void setMetaData(String metaData) {
+        this.metaData = metaData;
+    }
+	
+	public void setTopLevelMethod(MethodStats topLevelMethod) {
+        this.topLevelMethod = topLevelMethod;
+    }
+
+    public long getCreationTimeMillis() {
+        return creationTime;
+    }
 }

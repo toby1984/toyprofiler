@@ -21,6 +21,9 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.util.TraceClassVisitor;
 
+import de.codesourcery.toyprofiler.util.ClassMatcher;
+import de.codesourcery.toyprofiler.util.ParameterMap;
+
 public class Agent
 {
 	protected static boolean DEBUG_TRANSFORM = false;
@@ -132,7 +135,7 @@ public class Agent
 	}
 
     private static void parseArguments(String agentArgs) {
-        final Arguments arguments = new Arguments(agentArgs);
+        final ParameterMap arguments = new ParameterMap(agentArgs);
 		
 		if ( arguments.hasKey("file" ) ) {
 		    outputFile = new File( arguments.get("file" ) );
