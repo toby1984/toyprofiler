@@ -10,7 +10,7 @@ import java.util.Optional;
 
 import de.codesourcery.toyprofiler.Profile;
 import de.codesourcery.toyprofiler.ProfileContainer;
-import de.codesourcery.toyprofiler.ProfileData;
+import de.codesourcery.toyprofiler.util.XMLSerializer;
 
 public final class ViewingHistory 
 {
@@ -71,7 +71,7 @@ public final class ViewingHistory
         {
             try ( FileInputStream in =new FileInputStream( file ) )
             {
-                final ProfileContainer profiles = Profile.load( in );
+                final ProfileContainer profiles = new XMLSerializer().load( in );
                 final Optional<Profile> newSelection = findSameProfile( profiles );
                 history.set( ptr , new ProfileData(file,profiles, newSelection ) );
                 notifyListeners( current() );

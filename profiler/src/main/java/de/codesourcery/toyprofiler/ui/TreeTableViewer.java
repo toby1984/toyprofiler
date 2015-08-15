@@ -10,6 +10,7 @@ import de.codesourcery.toyprofiler.MethodStatsHelper;
 import de.codesourcery.toyprofiler.Profile;
 import de.codesourcery.toyprofiler.ProfileContainer;
 import de.codesourcery.toyprofiler.Profile.MethodStats;
+import de.codesourcery.toyprofiler.util.XMLSerializer;
 import javafx.application.Application;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.value.ObservableValue;
@@ -166,7 +167,7 @@ public class TreeTableViewer extends Application {
         final ProfileContainer profiles;
         try {
             FileInputStream in = new FileInputStream( fileToLoad );
-            profiles = Profile.load( in);
+            profiles = new XMLSerializer().load( in );
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

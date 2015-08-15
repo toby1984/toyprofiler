@@ -53,13 +53,13 @@ import javax.swing.table.DefaultTableModel;
 
 import de.codesourcery.toyprofiler.MethodStatsHelper;
 import de.codesourcery.toyprofiler.Profile;
-import de.codesourcery.toyprofiler.ProfileData;
 import de.codesourcery.toyprofiler.Profile.MethodStats;
 import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.FlameGraph;
 import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.IDataProvider;
 import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.IVisitor;
 import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.RectangularRegion;
 import de.codesourcery.toyprofiler.ui.ViewingHistory.IViewChangeListener;
+import de.codesourcery.toyprofiler.util.XMLSerializer;
 
 public class FlameGraphViewer extends JFrame
 {
@@ -730,7 +730,7 @@ public class FlameGraphViewer extends JFrame
     {
         try ( FileInputStream in =new FileInputStream(file) )
         {
-            history.add( file , Profile.load( in ) );
+            history.add( file , new XMLSerializer().load( in ) );
         } 
         catch(Exception e) 
         {

@@ -1,4 +1,4 @@
-package de.codesourcery.toyprofiler;
+package de.codesourcery.toyprofiler.ui;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -8,8 +8,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import de.codesourcery.toyprofiler.IRawMethodNameProvider;
+import de.codesourcery.toyprofiler.Profile;
+import de.codesourcery.toyprofiler.ProfileContainer;
 import de.codesourcery.toyprofiler.Profile.MethodStats;
 import de.codesourcery.toyprofiler.util.ParameterMap;
+import de.codesourcery.toyprofiler.util.XMLSerializer;
 
 public final class ProfileData implements IRawMethodNameProvider
 {
@@ -35,12 +39,13 @@ public final class ProfileData implements IRawMethodNameProvider
         return isDirty;
     }
     
-    public void save() throws IOException 
+    public void save(XMLSerializer serializer) throws IOException 
     {
         if ( isDirty && hasFile() ) 
         {
-            try ( FileOutputStream out = new FileOutputStream(sourceFile) ) {
-                Profile.save( out );
+            try ( FileOutputStream out = new FileOutputStream(sourceFile) ) 
+            {
+                serializer.save( container.getMethodNamesMap() , container.getProfiles() , out );
             }
         }
     }

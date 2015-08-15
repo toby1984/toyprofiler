@@ -42,7 +42,7 @@ public class XMLSerializer
         writer.writeAttribute( "totalTime" , Float.toString( stats.getTotalTimeMillisRaw() ) );
         for ( MethodStats s : stats.getCallees().values() )
         {
-            s.save( writer );
+            save( s , writer );
         }
         writer.writeEndElement();
     }
@@ -164,7 +164,7 @@ public class XMLSerializer
         return new ProfileContainer( result , methodNameMap );
     }
 
-    public void save(Map<Integer,String> ID_TO_METHOD_NAME , Collection<Profile> profiles, OutputStream out) throws IOException
+    public void save(Map<Integer,String> methodNameMap , Collection<Profile> profiles, OutputStream out) throws IOException
     {
         XMLStreamWriter writer = null;
         try
@@ -176,9 +176,9 @@ public class XMLSerializer
             writer.writeStartElement("profilingResults");  // <profilingResults>
 
             writer.writeStartElement("methodNames"); // <methodNames>
-            for ( Integer id : ID_TO_METHOD_NAME.keySet() )
+            for ( Integer id : methodNameMap.keySet() )
             {
-                final String name = ID_TO_METHOD_NAME.get( id.intValue() );
+                final String name = methodNameMap.get( id.intValue() );
                 writer.writeStartElement("methodName"); // <methodName...>
                 writer.writeAttribute( "id" , Integer.toString(id) );
                 writer.writeAttribute( "name" , name );

@@ -18,6 +18,10 @@ public class ProfileContainer implements IRawMethodNameProvider , Iterable<Profi
         this.methodNames = methodNames;
     }
     
+    public Map<Integer, String> getMethodNamesMap() {
+        return methodNames;
+    }
+    
     public List<Profile> getProfiles() {
         return profiles;
     }

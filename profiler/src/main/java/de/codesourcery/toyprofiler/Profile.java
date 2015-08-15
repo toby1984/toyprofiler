@@ -1,8 +1,7 @@
 package de.codesourcery.toyprofiler;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -11,19 +10,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Stack;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-import javax.xml.namespace.QName;
-import javax.xml.stream.XMLInputFactory;
-import javax.xml.stream.XMLOutputFactory;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamReader;
-import javax.xml.stream.XMLStreamWriter;
-
-import de.codesourcery.toyprofiler.Profile.MethodStats;
 import de.codesourcery.toyprofiler.util.ParameterMap;
+import de.codesourcery.toyprofiler.util.XMLSerializer;
 import net.openhft.koloboke.collect.map.hash.HashIntObjMap;
 import net.openhft.koloboke.collect.map.hash.HashIntObjMaps;
 
@@ -110,26 +101,6 @@ public class Profile
             return 100f*( totalTimeMillis / parentTime );
         }
 
-        public MethodStats(XMLStreamReader reader) throws XMLStreamException
-        {
-        	this.method = Integer.parseInt( readAttribute( "methodNameId" , reader ) );
-        	this.invocationCount = Long.parseLong( readAttribute("invocations",reader ) );
-        	this.totalTimeMillis = Float.parseFloat( readAttribute("totalTime",reader ) );
-		}
-
-		public void save(XMLStreamWriter writer) throws XMLStreamException
-		{
-			writer.writeStartElement("invocation");
-			writer.writeAttribute( "methodNameId" , Integer.toString( method ) );
-			writer.writeAttribute( "invocations" , Long.toString( invocationCount ) );
-			writer.writeAttribute( "totalTime" , Float.toString( totalTimeMillis ) );
-			for ( MethodStats s : callees.values() )
-			{
-				s.save( writer );
-			}
-			writer.writeEndElement();
-		}
-
 		public void onEnter()
         {
             invocationCount++;
@@ -210,73 +181,6 @@ public class Profile
     
     private MethodStats currentMethod;
 
-    protected static final String readAttribute(String attrName,XMLStreamReader reader)
-    {
-        final String result = readAttribute( attrName , null , reader );
-        if ( result == null ) {
-            throw new RuntimeException("Internal error, <"+reader.getLocalName()+"/> tag lacks '"+attrName+"' attribute");
-        }
-        return result;
-    }
-    
-    protected static final String readAttribute(String attrName,String defaultValue,XMLStreamReader reader)
-    {
-    	String value=null;
-    	for ( int i = 0 , len = reader.getAttributeCount() ; i < len ; i++) {
-    		final QName name = reader.getAttributeName( i );
-    		if ( attrName.equals( name.getLocalPart() ) ) {
-    			value= reader.getAttributeValue( i );
-    			break;
-    		}
-    	}
-    	if ( value == null || value.trim().length() == 0 )
-    	{
-    	    return defaultValue;
-    	}
-    	return value;
-    }
-
-    public Profile(XMLStreamReader reader) throws XMLStreamException
-    {
-    	this.threadName=readAttribute("threadName",reader);
-    	this.creationTime= Long.parseLong( readAttribute("creationTime" , "0" , reader ) );
-        this.metaData = readAttribute("metaData",null,reader);
-        
-    	System.out.println("Loading profile '"+threadName+"'");
-    	final Stack<MethodStats> stack = new Stack<>();
-    	while ( reader.hasNext() )
-    	{
-    		switch( reader.next() )
-    		{
-    			case XMLStreamReader.START_ELEMENT:
-    				if ( "invocation".equals( reader.getLocalName() ) )
-    				{
-    					final MethodStats stats = new MethodStats( reader );
-    					if ( topLevelMethod == null ) {
-    						topLevelMethod = stats;
-    					}
-    					if ( ! stack.isEmpty() )
-    					{
-    						stats.parent = stack.peek();
-    						stack.peek().callees.put( stats.method , stats );
-    					}
-    					stack.push( stats );
-    				}
-    				break;
-    			case XMLStreamReader.END_ELEMENT:
-    				if ( "profile".equals( reader.getLocalName() ) )
-    				{
-    					return;
-    				}
-    				else if ( "invocation".equals( reader.getLocalName() ) )
-    				{
-    					stack.pop();
-    				}
-    				break;
-    		}
-    	}
-    }
-    
     public Profile(Thread currentThread) {
         this( currentThread.getName() );
     }
@@ -358,119 +262,6 @@ public class Profile
         return "Thread[ "+threadName+"]\n"+topLevelMethod.toString();
     }
 
-    public static ProfileContainer load(InputStream in) throws IOException
-    {
-    	final List<Profile> result = new ArrayList<>();
-    	
-    	final HashIntObjMap<String> methodNameMap = HashIntObjMaps.newMutableMap( 2000 );
-    	
-    	XMLStreamReader reader = null;
-    	try
-    	{
-    		final XMLInputFactory factory = XMLInputFactory.newFactory();
-			reader = factory.createXMLStreamReader( in );
-
-			while ( reader.hasNext() )
-			{
-				switch( reader.next() )
-				{
-					case XMLStreamReader.START_ELEMENT:
-						if ( "methodName".equals( reader.getLocalName() ) )
-						{
-							final int id = Integer.parseInt( readAttribute( "id" , reader ) );
-							final String name = readAttribute( "name" , reader );
-							methodNameMap.put(id,name);
-						}
-						else if ( "profile".equals( reader.getLocalName() ) )
-						{
-							result.add( new Profile( reader ) );
-						}
-						break;
-					case XMLStreamReader.END_ELEMENT:
-						break;
-				}
-			}
-		}
-    	catch (XMLStreamException e)
-    	{
-			throw new IOException(e);
-		}
-    	finally
-    	{
-			if ( reader != null )
-			{
-				try { reader.close(); } catch(XMLStreamException e) { /* ok */ }
-			}
-		}
-    	return new ProfileContainer( result , methodNameMap );
-    }
-
-    public static void save(OutputStream out) throws IOException
-    {
-    	XMLStreamWriter writer = null;
-    	try
-    	{
-    		final XMLOutputFactory factory = XMLOutputFactory.newFactory();
-			writer = factory.createXMLStreamWriter( out );
-			writer.writeStartDocument("UTF-8", "1.0" );
-
-			writer.writeStartElement("profilingResults");  // <profilingResults>
-
-			writer.writeStartElement("methodNames"); // <methodNames>
-			for ( Integer id : ID_TO_METHOD_NAME.keySet() )
-			{
-				final String name = ID_TO_METHOD_NAME.get( id.intValue() );
-				writer.writeStartElement("methodName"); // <methodName...>
-				writer.writeAttribute( "id" , Integer.toString(id) );
-				writer.writeAttribute( "name" , name );
-				writer.writeEndElement(); // </methodName>
-			}
-			writer.writeEndElement(); // </methodNames>
-
-			writer.writeStartElement("profiles"); // <profiles>
-
-			for ( Profile p : PROFILES_BY_THREAD.values() )
-			{
-				System.out.println("Writing profile "+p.threadName+" ...");
-				p.save(writer);
-			}
-
-			writer.writeEndElement(); // </profiles>
-
-			writer.writeEndElement(); // </profilingResults>
-
-			writer.writeEndDocument();
-			writer.close();
-		}
-    	catch (XMLStreamException e)
-    	{
-			throw new IOException(e);
-		}
-    	finally
-    	{
-			if ( writer != null )
-			{
-				try { writer.close(); } catch(XMLStreamException e) { /* ok */ }
-			}
-		}
-    }
-
-	private void save(XMLStreamWriter writer) throws XMLStreamException
-	{
-		writer.writeStartElement("profile");
-		writer.writeAttribute("threadName" , threadName );
-		writer.writeAttribute("creationTime" , Long.toString( creationTime ) );
-		if ( metaData != null ) {
-		    writer.writeAttribute("metaData" , metaData );
-		}
-		
-		if ( topLevelMethod != null )
-		{
-			topLevelMethod.save( writer );
-		}
-		writer.writeEndElement();
-	}
-
 	public MethodStats getTopLevelMethod()
 	{
 		return topLevelMethod;
@@ -528,5 +319,9 @@ public class Profile
 
     public long getCreationTimeMillis() {
         return creationTime;
+    }
+
+    public static void save(FileOutputStream fileOutputStream) throws IOException {
+        new XMLSerializer().save(ID_TO_METHOD_NAME,PROFILES_BY_THREAD.values() , fileOutputStream );
     }
 }
