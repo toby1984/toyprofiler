@@ -12,7 +12,6 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.HeadlessException;
-import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
@@ -27,12 +26,14 @@ import java.lang.reflect.InvocationTargetException;
 import java.text.DecimalFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 import javax.swing.DefaultComboBoxModel;
@@ -55,7 +56,6 @@ import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.table.DefaultTableModel;
 
-import de.codesourcery.toyprofiler.IRawMethodNameProvider;
 import de.codesourcery.toyprofiler.MethodStatsHelper;
 import de.codesourcery.toyprofiler.Profile;
 import de.codesourcery.toyprofiler.Profile.MethodStats;
@@ -71,6 +71,7 @@ public class FlameGraphViewer extends JFrame
     protected static final DateTimeFormatter DATE_PATTERN = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssZZZ");
     protected static final DecimalFormat INVOCATION_COUNT_FORMAT = new DecimalFormat("###,###,###,###,##0");
     protected static final DecimalFormat DURATION_FORMAT = new DecimalFormat("#######0.0#####");
+    protected static final DecimalFormat PERCENTAGE_FORMAT = new DecimalFormat("#####0.0#");
     
     private final JComboBox<Profile> profileSelector = new JComboBox<>();
 
@@ -290,7 +291,7 @@ public class FlameGraphViewer extends JFrame
                 data.put("Method", resolver.getMethodName(stats) );
                 data.put("Signature", resolver.getRawMethodSignature(stats));
                 data.put("Invocations" , INVOCATION_COUNT_FORMAT.format( stats.getInvocationCount() ) );
-                data.put("Total time" , millisToString( stats.getTotalTimeMillis() ) );
+                data.put("Total time" , millisToString( stats.getTotalTimeMillis() ) +" ("+PERCENTAGE_FORMAT.format( 100*stats.getPercentageOfParentTime() )+" % of parent)" );
                 data.put("Own time" , millisToString( stats.getOwnTimeMillis() ) );
 
                 final int col0MaxLen = data.keySet().stream().mapToInt( s -> s.length() ).max().orElse(0);
@@ -493,7 +494,11 @@ public class FlameGraphViewer extends JFrame
 
         profileSelector.addActionListener( ev ->
         {
-            history.setCurrentProfile( (Profile) profileSelector.getSelectedItem() , true );
+            final Profile selectedItem = (Profile) profileSelector.getSelectedItem();
+            System.out.println("User selected: "+selectedItem);
+            if ( history.current().isPresent() ) {
+                history.setCurrentProfile( selectedItem , true );
+            }
         });
         
         final JPanel compound = new JPanel();
@@ -683,11 +688,19 @@ public class FlameGraphViewer extends JFrame
             setDefaultCloseOperation( JDialog.HIDE_ON_CLOSE );
 
             final JPanel panel = new JPanel();
-            final JButton closeDialog = new JButton("Close");
+            final JButton closeDialog = new JButton("Hide window");
             closeDialog.addActionListener( ev -> 
             {
                 setVisible(false);
             });
+            
+            final JButton unloadProfile = new JButton("Unload");
+            unloadProfile.addActionListener( ev -> 
+            {
+                final int[] rows = table.getSelectedRows();
+                final List<ProfileData> toUnload = Arrays.stream( rows ).mapToObj( idx -> tableModel.getRow(idx) ).collect( Collectors.toList() );
+                history.unload( toUnload );
+            });            
             
             final JButton compare = new JButton("Compare");
             compare.addActionListener( new ActionListener() 
@@ -747,6 +760,7 @@ public class FlameGraphViewer extends JFrame
             panel.add( new JScrollPane(table ) );
             panel.add( closeDialog );
             panel.add( compare );
+            panel.add( unloadProfile );
             add( panel );
             
             table.addMouseListener( new MouseAdapter() {

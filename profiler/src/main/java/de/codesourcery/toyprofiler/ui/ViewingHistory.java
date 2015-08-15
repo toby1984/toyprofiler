@@ -5,6 +5,7 @@ import java.io.FileInputStream;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
@@ -139,12 +140,17 @@ public final class ViewingHistory
 
         return history.stream().sorted( comp.reversed() ).findFirst();
     }
-
+    
     public void remove(ProfileData data) 
+    {
+        remove(data,true);
+    }
+
+    private boolean remove(ProfileData data,boolean notify) 
     {
         int idx = history.indexOf( data );
         if (idx == -1 ) {
-            return;
+            return false;
         }
         if ( idx > ptr ) // element is after current ptr, ptr stays the same 
         {
@@ -152,10 +158,13 @@ public final class ViewingHistory
         } else if ( idx == ptr ) { // element is at the current ptr, stays the same
             history.remove( idx );
             if ( ptr >= history.size() ) {
-                do {
+                while ( ptr > 0 && ptr >= history.size() ) {
                     ptr--;
-                } while ( ptr > 0 && ptr >= history.size() );
-                notifyListeners( current() );
+                }
+                if ( notify ) {
+                    notifyListeners( current() );
+                }
+                return true;
             }
         } 
         else 
@@ -163,9 +172,14 @@ public final class ViewingHistory
             history.remove( idx );
             if ( ptr > 0 ) {
                 ptr--; 
-                notifyListeners( current() );
+                if ( notify ) 
+                {
+                    notifyListeners( current() );
+                }
+                return true;
             }
         }
+        return false;
     }
 
     public Optional<ProfileData> current() 
@@ -191,5 +205,18 @@ public final class ViewingHistory
             return true;
         }
         return false;
+    }
+
+    public void unload(List<ProfileData> toUnload) 
+    {
+        boolean notify = false;
+        for (ProfileData profileData : toUnload) 
+        {
+            System.out.println("Unloading "+profileData);
+            notify |= remove( profileData , false );
+        }
+        if ( notify ) {
+            notifyListeners( current() );
+        }
     }
 }
