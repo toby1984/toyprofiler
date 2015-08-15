@@ -5,12 +5,16 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.FontMetrics;
+import java.awt.Frame;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.HeadlessException;
+import java.awt.Window;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -51,6 +55,7 @@ import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.table.DefaultTableModel;
 
+import de.codesourcery.toyprofiler.IRawMethodNameProvider;
 import de.codesourcery.toyprofiler.MethodStatsHelper;
 import de.codesourcery.toyprofiler.Profile;
 import de.codesourcery.toyprofiler.Profile.MethodStats;
@@ -78,29 +83,39 @@ public class FlameGraphViewer extends JFrame
     private final ViewingHistory history = new ViewingHistory();
     private final HistoryDialog historyDialog = new HistoryDialog();
 
-    protected final class MethodDataProvider implements IDataProvider<MethodStats> 
+    public static final class MethodDataProvider implements IDataProvider<MethodStats> 
     {
-        private final Profile profile;
-        private final MethodStatsHelper resolver;
+        private final Profile currentProfile;
+        private final MethodStatsHelper currentResolver;
+        
+        private final Profile previousProfile;
+        private final MethodStatsHelper previousResolver;
 
-        public MethodDataProvider(Profile p,MethodStatsHelper resolver) {
-            this.profile = p;
-            this.resolver = resolver;
+        public MethodDataProvider(Profile currentProfile,MethodStatsHelper resolver) {
+            this(currentProfile,null,null,resolver);
+        }
+        
+        public MethodDataProvider(Profile currentProfile,Profile previousProfile,MethodStatsHelper previousResolver,MethodStatsHelper currentResolver) 
+        {
+            this.currentProfile = currentProfile;
+            this.previousProfile = previousProfile;
+            this.currentResolver = currentResolver;
+            this.previousResolver = previousResolver;
         }
 
-        public Profile getProfile() {
-            return profile;
+        public Profile getCurrentProfile() {
+            return currentProfile;
         }
 
         @Override
         public MethodStats getRoot() {
-            return profile.getTopLevelMethod();
+            return currentProfile.getTopLevelMethod();
         }
 
         @Override
-        public double getValue(MethodStats node) 
+        public double getPercentageValue(MethodStats node) 
         {
-            return node.getTotalTimeMillis();
+            return node.getPercentageOfParentTime();
         }
 
         @Override
@@ -117,8 +132,8 @@ public class FlameGraphViewer extends JFrame
         @Override
         public String getLabel(MethodStats node, Graphics2D graphics, int maxWidth)
         {
-            final String clazz = resolver.getSimpleClassName( node );
-            final String method = resolver.getMethodName( node );
+            final String clazz = currentResolver.getSimpleClassName( node );
+            final String method = currentResolver.getMethodName( node );
 
             String className = clazz;
             String text = method;
@@ -141,6 +156,25 @@ public class FlameGraphViewer extends JFrame
         {
             final FontMetrics fm = g.getFontMetrics();
             return fm.stringWidth(text);
+        }
+
+        @Override
+        public boolean isShowDifferences() 
+        {
+            return previousProfile != null;
+        }
+
+        @Override
+        public double getPreviousPercentageValue(MethodStats currentNode) 
+        {
+            if ( previousProfile == null ) {
+                throw new IllegalStateException("Called without previous profile ?"); 
+            }
+            final int[] methodIds = currentNode.getPathFromRoot();
+            final String[] methodNames = currentResolver.resolveMethodIds( methodIds );
+            final int[] previousMethodIds = previousResolver.resolveMethodNames( methodNames );
+            final MethodStats previousNode = previousProfile.lookupByPath( previousMethodIds );
+            return previousNode.getPercentageOfParentTime();
         }
     }
 
@@ -649,21 +683,76 @@ public class FlameGraphViewer extends JFrame
             setDefaultCloseOperation( JDialog.HIDE_ON_CLOSE );
 
             final JPanel panel = new JPanel();
-            final JButton cancel = new JButton("Close");
-            cancel.addActionListener( ev -> 
+            final JButton closeDialog = new JButton("Close");
+            closeDialog.addActionListener( ev -> 
             {
                 setVisible(false);
             });
             
+            final JButton compare = new JButton("Compare");
+            compare.addActionListener( new ActionListener() 
+            {
+                @Override
+                public void actionPerformed(ActionEvent ev) {
+                    final int[] rows = table.getSelectedRows();
+                    if ( rows.length != 2 ) {
+                        error("You need to select exactly 2 rows");
+                        return;
+                    }
+                    
+                    final int min = Math.min(rows[0],rows[1]);
+                    final int max = Math.max(rows[0],rows[1]);
+                    
+                    final ProfileData previous = tableModel.getRow(min);
+                    final ProfileData current  = tableModel.getRow(max);
+                    
+                    if ( ! current.getSelectedThreadName().isPresent() ) {
+                        error("Profile "+current+" has no thread selected");
+                        return;
+                    }                
+                    
+                    final Profile currentProfile = current.getSelectedProfile().get();
+                    final Optional<Profile> previousProfile = previous.getProfileByThreadName( currentProfile.getThreadName() );
+                    if ( ! previousProfile.isPresent() ) {
+                        error("Profile "+previous+" has no thread named '"+currentProfile.getThreadName() );
+                        return;
+                    } 
+                    final MethodStatsHelper previousResolver = new MethodStatsHelper( previous );
+                    final MethodStatsHelper currentResolver = new MethodStatsHelper( current );
+                    final IDataProvider<MethodStats> dataProvider = new MethodDataProvider(currentProfile, previousProfile.get(), previousResolver, currentResolver );
+                    final FlameGraphRenderer<MethodStats> cmpRenderer = new FlameGraphRenderer<MethodStats>( dataProvider );
+                    
+                    final JPanel panel = new JPanel() 
+                    {
+                        @Override
+                        public void paint(Graphics g) 
+                        {
+                            final FlameGraph<MethodStats> graph = cmpRenderer.render( getWidth() , getHeight() );
+                            g.drawImage( graph.getImage() , 0 , 0 , null );
+                        }
+                    };
+                    final JDialog tmp = new JDialog((Frame) null,"Comparison",true);
+                    tmp.setDefaultCloseOperation( JDialog.DISPOSE_ON_CLOSE );
+                    
+                    tmp.add( panel );
+                    
+                    tmp.setPreferredSize( new Dimension(400, 400 ) );
+                    tmp.pack();
+                    tmp.setLocationRelativeTo(null);
+                    tmp.setVisible(true);
+                }
+            });            
+            
             table.setPreferredSize( new Dimension(400,400 ) );
             panel.add( new JScrollPane(table ) );
-            panel.add( cancel );
+            panel.add( closeDialog );
+            panel.add( compare );
             add( panel );
             
             table.addMouseListener( new MouseAdapter() {
                 
-                public void mouseClicked(MouseEvent e) {
-                 
+                public void mouseClicked(MouseEvent e) 
+                {
                     if ( e.getClickCount() >= 2 && e.getButton() == MouseEvent.BUTTON1 ) 
                     {
                         final int row = table.rowAtPoint( e.getPoint() );
@@ -851,7 +940,7 @@ public class FlameGraphViewer extends JFrame
     
     protected static void error(String message) 
     {
-        error(message);
+        error(message,null);
     }
     
     protected static void error(String message,Throwable t) 

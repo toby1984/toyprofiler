@@ -11,113 +11,116 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import de.codesourcery.toyprofiler.Profile.MethodStats;
-import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.RectangularRegion;
-
 public class FlameGraphRenderer<T>
 {
-	private int maxDepth;
+    private int maxDepth;
 
-	private BufferedImage image;
-	private Graphics2D graphics;
+    private BufferedImage image;
+    private Graphics2D graphics;
 
-	private int height;
-	private int heightPerRow;
+    private int height;
+    private int heightPerRow;
 
-	private Color[] gradient;
+    private Color[] gradient;
 
-	private boolean doRender;
+    private boolean doRender;
 
-	private final IDataProvider<T> dataProvider;
+    private final IDataProvider<T> dataProvider;
 
-	private List<RectangularRegion<T>> regions = new ArrayList<>(1000);
+    private List<RectangularRegion<T>> regions = new ArrayList<>(1000);
 
-	public interface IVisitor<T>
-	{
-		public void visit(T item,int depth);
-	}
-	public interface IDataProvider<T>
-	{
-		public T getRoot();
+    public interface IVisitor<T>
+    {
+        public void visit(T item,int depth);
+    }
+    public interface IDataProvider<T>
+    {
+        public T getRoot();
 
-		public double getValue(T node);
+        public double getPercentageValue(T node);
 
-		public List<T> getChildren(T node);
+        public boolean isShowDifferences();
 
-		public void visitSubtree(T startNode,IVisitor<T> visitor);
+        public double getPreviousPercentageValue(T node);
 
-		public String getLabel(T node,Graphics2D graphics,int maxWidth);
-	}
+        public List<T> getChildren(T node);
 
-	private void setupColors(int colorCount)
-	{
-		gradient = new Color[colorCount];
+        public void visitSubtree(T startNode,IVisitor<T> visitor);
 
-		final Color src = Color.RED;
-		final Color dst = Color.ORANGE;
+        public String getLabel(T node,Graphics2D graphics,int maxWidth);
+    }
 
-		float dr = (dst.getRed()/255f - src.getRed()/255f)/colorCount;
-		float dg = (dst.getGreen()/255f - src.getGreen()/255f)/colorCount;
-		float db = (dst.getBlue()/255f - src.getBlue()/255f)/colorCount;
+    public static Color[] createGradient(final Color src ,final Color dst,int colorCount) 
+    {
+        final Color[] gradient = new Color[colorCount];
 
-		float r = src.getRed()/255f;
-		float g = src.getGreen()/255f;
-		float b = src.getBlue()/255f;
+        float dr = (dst.getRed()/255f - src.getRed()/255f)/colorCount;
+        float dg = (dst.getGreen()/255f - src.getGreen()/255f)/colorCount;
+        float db = (dst.getBlue()/255f - src.getBlue()/255f)/colorCount;
 
-		for ( int i = 0 ; i < colorCount ; i++)
-		{
-			gradient[i] = new Color( r , g , b );
-			r += dr;
-			g += dg;
-			b += db;
-		}
-	}
+        float r = src.getRed()/255f;
+        float g = src.getGreen()/255f;
+        float b = src.getBlue()/255f;
 
-	public static final class RectangularRegion<T> extends Rectangle
-	{
-		public final T stats;
+        for ( int i = 0 ; i < colorCount ; i++)
+        {
+            gradient[i] = new Color( r , g , b );
+            r += dr;
+            g += dg;
+            b += db;
+        }
+        return gradient;
+    }
 
-		public RectangularRegion(Rectangle r,T stats) {
-			super(r);
-			this.stats = stats;
-		}
+    public void setGradient(Color[] gradient) {
+        this.gradient = gradient;
+    }
 
-		public boolean matches(RectangularRegion<T> other)
-		{
-			return other != null && this.equals( other ) && this.stats == other.stats;
-		}
-	}
+    public static final class RectangularRegion<T> extends Rectangle
+    {
+        public final T stats;
 
-	public static final class FlameGraph<T>
-	{
-		private final BufferedImage image;
-		private final List<RectangularRegion<T>> regions;
+        public RectangularRegion(Rectangle r,T stats) {
+            super(r);
+            this.stats = stats;
+        }
 
-		public FlameGraph(BufferedImage image,List<RectangularRegion<T>> rects) {
-			this.image = image;
-			this.regions = new ArrayList<>(rects);
-		}
+        public boolean matches(RectangularRegion<T> other)
+        {
+            return other != null && this.equals( other ) && this.stats == other.stats;
+        }
+    }
 
-		public BufferedImage getImage() {
-			return image;
-		}
+    public static final class FlameGraph<T>
+    {
+        private final BufferedImage image;
+        private final List<RectangularRegion<T>> regions;
 
-		public RectangularRegion<T> getFirst()
-		{
-			return regions.isEmpty() ? null : regions.get(0);
-		}
+        public FlameGraph(BufferedImage image,List<RectangularRegion<T>> rects) {
+            this.image = image;
+            this.regions = new ArrayList<>(rects);
+        }
 
-		public RectangularRegion<T> getRegion(int x,int y)
-		{
-			for (int i = 0,len = regions.size() ; i < len ; i++)
-			{
-				final RectangularRegion<T> r = regions.get(i);
-				if ( r.contains(x,y) ) {
-					return r;
-				}
-			}
-			return null;
-		}
+        public BufferedImage getImage() {
+            return image;
+        }
+
+        public RectangularRegion<T> getFirst()
+        {
+            return regions.isEmpty() ? null : regions.get(0);
+        }
+
+        public RectangularRegion<T> getRegion(int x,int y)
+        {
+            for (int i = 0,len = regions.size() ; i < len ; i++)
+            {
+                final RectangularRegion<T> r = regions.get(i);
+                if ( r.contains(x,y) ) {
+                    return r;
+                }
+            }
+            return null;
+        }
 
         public RectangularRegion<T> find(T stats) 
         {
@@ -130,178 +133,178 @@ public class FlameGraphRenderer<T>
             }
             return null;
         }
-	}
+    }
 
-	public FlameGraphRenderer(IDataProvider<T> provider)
-	{
-		this(provider,4);
-	}
+    public FlameGraphRenderer(IDataProvider<T> provider)
+    {
+        this(provider,6);
+    }
 
-	public FlameGraphRenderer(IDataProvider<T> provider,int colorCount)
-	{
-		this.dataProvider = provider;
-		setupColors(colorCount);
-	}
+    public FlameGraphRenderer(IDataProvider<T> provider,int colorCount)
+    {
+        this.dataProvider = provider;
+        this.gradient = createGradient( Color.RED.darker() , Color.ORANGE , colorCount );
+    }
 
-	private int calcMaxDepth(T root)
-	{
-		final int[] md = {0};
-		if ( root != null )
-		{
-			dataProvider.visitSubtree(root , (node,depth) -> {
-				if ( depth > md[0] ) {
-					md[0]=depth;
-				}
-			});
-		}
-		return md[0];
-	}
+    private int calcMaxDepth(T root)
+    {
+        final int[] md = {0};
+        if ( root != null )
+        {
+            dataProvider.visitSubtree(root , (node,depth) -> {
+                if ( depth > md[0] ) {
+                    md[0]=depth;
+                }
+            });
+        }
+        return md[0];
+    }
 
-	private void reset(T root,int width,int height)
-	{
-		this.doRender = true;
-		this.maxDepth = calcMaxDepth( root );
-		this.height = height;
-		this.regions = new ArrayList<>(1000);
-		this.image = new BufferedImage(width,height,BufferedImage.TYPE_INT_RGB );
-		if ( this.graphics != null )
-		{
-			this.graphics.dispose();
-		}
-		this.graphics = image.createGraphics();
-	}
+    private void reset(T root,int width,int height)
+    {
+        this.doRender = true;
+        this.maxDepth = calcMaxDepth( root );
+        this.height = height;
+        this.regions = new ArrayList<>(1000);
+        this.image = new BufferedImage(width,height,BufferedImage.TYPE_INT_RGB );
+        if ( this.graphics != null )
+        {
+            this.graphics.dispose();
+        }
+        this.graphics = image.createGraphics();
+    }
 
-	public FlameGraph<T> render(int width,int height)
-	{
-		return render( dataProvider.getRoot() , width , height );
-	}
+    public FlameGraph<T> render(int width,int height)
+    {
+        return render( dataProvider.getRoot() , width , height );
+    }
 
-	public FlameGraph<T> render(T root,int width,int height)
-	{
-		// first rendering pass
-		reset(root,width,height);
-		doRender = false; // do not render, just calculate layout
-		onePass(root,width,height);
+    public FlameGraph<T> render(T root,int width,int height)
+    {
+        // first rendering pass
+        reset(root,width,height);
+        doRender = false; // do not render, just calculate layout
+        onePass(root,width,height);
 
-		// determine visible height by discarding all
-		// regions that are too tiny to see at the
-		// current zoom level
-		final Map<Integer,List<RectangularRegion<T>>> childAtDepth = new HashMap<>();
+        // determine visible height by discarding all
+        // regions that are too tiny to see at the
+        // current zoom level
+        final Map<Integer,List<RectangularRegion<T>>> childAtDepth = new HashMap<>();
 
-		dataProvider.visitSubtree(root ,  (child,depth ) -> {
+        dataProvider.visitSubtree(root ,  (child,depth ) -> {
 
-			final RectangularRegion<T> region = regions.stream().filter( r -> r.stats == child ).findFirst().orElse( null );
-			if ( region != null && isVisible(region) )
-			{
-				List<RectangularRegion<T>> list = childAtDepth.get( depth );
-				if ( list == null ) {
-					list = new ArrayList<>();
-					childAtDepth.put(depth,list);
-				}
-				list.add( region );
-			}
-		});
+            final RectangularRegion<T> region = regions.stream().filter( r -> r.stats == child ).findFirst().orElse( null );
+            if ( region != null && isVisible(region) )
+            {
+                List<RectangularRegion<T>> list = childAtDepth.get( depth );
+                if ( list == null ) {
+                    list = new ArrayList<>();
+                    childAtDepth.put(depth,list);
+                }
+                list.add( region );
+            }
+        });
 
-		final int visibleDepth = childAtDepth.keySet().stream().mapToInt( k -> k.intValue() ).max().orElse(0);
+        final int visibleDepth = childAtDepth.keySet().stream().mapToInt( k -> k.intValue() ).max().orElse(0);
 
-		// second rendering pass
-		reset(root,width,height);
-		maxDepth = visibleDepth;
-		onePass(root,width,height);
+        // second rendering pass
+        reset(root,width,height);
+        maxDepth = visibleDepth;
+        onePass(root,width,height);
 
-		final FlameGraph<T> result = new FlameGraph<T>(image,regions);
-		
+        final FlameGraph<T> result = new FlameGraph<T>(image,regions);
+
         // release memory just in case someone rendered a super-big graph
-		cleanup();
-		return result;
-	}
+        cleanup();
+        return result;
+    }
 
     private void cleanup() 
     {
-		this.regions.clear();
-		this.image = null;
-		this.graphics.dispose();
-		this.graphics = null;
+        this.regions.clear();
+        this.image = null;
+        this.graphics.dispose();
+        this.graphics = null;
     }
 
-	private boolean isVisible(RectangularRegion<T> r)
-	{
-		return r.width > 0;
-	}
+    private boolean isVisible(RectangularRegion<T> r)
+    {
+        return r.width > 0;
+    }
 
-	private void onePass(T root,int width,int height)
-	{
-		if ( doRender ) {
-			graphics.setColor( Color.WHITE );
-			graphics.fillRect( 0 , 0 ,width , height );
-		}
+    private void onePass(T root,int width,int height)
+    {
+        if ( doRender ) {
+            graphics.setColor( Color.WHITE );
+            graphics.fillRect( 0 , 0 ,width , height );
+        }
 
-		if ( root != null )
-		{
-			heightPerRow = height / (maxDepth+1);
+        if ( root != null )
+        {
+            heightPerRow = height / (maxDepth+1);
 
-			final Rectangle currentBox = new Rectangle(0,height-heightPerRow,width,heightPerRow);
-			processPath( 0 , root , currentBox , 1 );
-		}
-	}
+            final Rectangle currentBox = new Rectangle(0,height-heightPerRow,width,heightPerRow);
+            processPath( 0 , root , currentBox , 1 );
+        }
+    }
 
-	private void processPath(int currentColor,T parent,Rectangle rect,int currentDepth)
-	{
-		regions.add( new RectangularRegion<T>(rect, parent) );
+    private void processPath(int currentColor,T parent,Rectangle rect,int currentDepth)
+    {
+        regions.add( new RectangularRegion<T>(rect, parent) );
 
-		if ( doRender ) {
-			render( currentColor , parent , rect );
-		}
-		currentColor++;
+        if ( doRender ) 
+        {
+            render( currentColor , parent , rect );
+        }
+        currentColor++;
 
-		final double totalTime = dataProvider.getValue( parent ) ; // parent.getTotalTimeMillis()
-		final List<T> sorted = dataProvider.getChildren( parent ) ; // TODO: Maybe sort ??
+        final List<T> sorted = dataProvider.getChildren( parent ) ; 
 
-//		int sumWidth = 0;
-//		for ( T child : sorted )
-//		{
-//			final double percentageThisNode= dataProvider.getValue( child ) / totalTime;
-//			final int w = (int) ( rect.width * percentageThisNode);
-//			sumWidth += w;
-//		}
-//		final int offset = (rect.width - sumWidth)/2;
-//		int x = rect.x+offset;
-		int x = rect.x;
-		final int y = height-(currentDepth+1)*heightPerRow;
+        int x = rect.x;
+        final int y = height-(currentDepth+1)*heightPerRow;
 
-		for ( T child : sorted )
-		{
-			final double percentageThisNode= dataProvider.getValue( child) / totalTime;
-			final int w = (int) ( rect.width * percentageThisNode);
+        for ( T child : sorted )
+        {
+            final double percentageThisNode= dataProvider.getPercentageValue( child);
+            final int w = (int) ( rect.width * percentageThisNode);
 
-			final Rectangle currentBox = new Rectangle( x  , y , w ,heightPerRow);
-			processPath( currentColor , child , currentBox , currentDepth+1 );
-			currentColor++;
-			x += w;
-		}
-	}
+            final Rectangle currentBox = new Rectangle( x  , y , w ,heightPerRow);
+            processPath( currentColor , child , currentBox , currentDepth+1 );
+            currentColor++;
+            x += w;
+        }
+    }
 
-	private void render(int currentColorIndex , T node,Rectangle r) {
+    private void render(int currentColorIndex , T node,Rectangle r) {
 
-		graphics.setColor( gradient[ currentColorIndex % gradient.length ] );
+        graphics.setColor( gradient[ currentColorIndex % gradient.length ] );
 
-		graphics.fillRect( r.x , r.y , r.width , r.height );
+        graphics.fillRect( r.x , r.y , r.width , r.height );
 
-		graphics.setColor( Color.WHITE );
+        if ( dataProvider.isShowDifferences() ) 
+        {
+            final double delta = dataProvider.getPercentageValue( node ) - dataProvider.getPreviousPercentageValue( node );
+            final Color color = delta > 0 ? Color.RED : Color.GREEN;
+            final int w = (int) (r.width * Math.abs(delta));
+            graphics.setColor( color );
+            graphics.fillRect( r.x+r.width-w , r.y , w , r.height );
+        }
 
-		final String label = dataProvider.getLabel( node , graphics , r.width );
-		drawCentered( label , r );
-	}
+        graphics.setColor( Color.WHITE );
 
-	private void drawCentered(String text,Rectangle rectangle)
-	{
-		final FontMetrics fm = graphics.getFontMetrics();
-		final int x = rectangle.x + (rectangle.width - fm.stringWidth(text)) / 2;
-		final int y = rectangle.y + fm.getAscent() + ( rectangle.height - fm.getHeight() )/ 2;
+        final String label = dataProvider.getLabel( node , graphics , r.width );
+        drawCentered( label , r );
+    }
 
-		final Shape oldClip = graphics.getClip();
-		graphics.setClip( rectangle );
-		graphics.drawString(text, x,y);
-		graphics.setClip( oldClip );
-	}
+    private void drawCentered(String text,Rectangle rectangle)
+    {
+        final FontMetrics fm = graphics.getFontMetrics();
+        final int x = rectangle.x + (rectangle.width - fm.stringWidth(text)) / 2;
+        final int y = rectangle.y + fm.getAscent() + ( rectangle.height - fm.getHeight() )/ 2;
+
+        final Shape oldClip = graphics.getClip();
+        graphics.setClip( rectangle );
+        graphics.drawString(text, x,y);
+        graphics.setClip( oldClip );
+    }
 }

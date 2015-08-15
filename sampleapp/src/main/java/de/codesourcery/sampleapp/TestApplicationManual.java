@@ -6,7 +6,10 @@ import java.io.IOException;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 
+import de.codesourcery.toyprofiler.MethodStatsHelper;
 import de.codesourcery.toyprofiler.Profile;
+import de.codesourcery.toyprofiler.ProfileContainer;
+import de.codesourcery.toyprofiler.util.XMLSerializer;
 
 public class TestApplicationManual
 {
@@ -36,7 +39,7 @@ public class TestApplicationManual
         }
         latch.await();
 
-        System.out.println( Profile.printAllThreads() );
+        System.out.println( Profile.printAll() );
 
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
         Profile.save( out );
@@ -44,7 +47,9 @@ public class TestApplicationManual
 
         System.out.println("==== FROM FILE ==== ");
         final ByteArrayInputStream in = new ByteArrayInputStream( out.toByteArray() );
-        Profile.load( in ).stream().forEach( System.out::println);
+        final ProfileContainer container = new XMLSerializer().load( in );
+        final MethodStatsHelper helper = new MethodStatsHelper(container);
+        container.getProfiles().stream().forEach( p -> System.out.println( helper.print( p ) ) );
     }
 
     public void run()

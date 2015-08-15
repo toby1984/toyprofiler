@@ -48,8 +48,9 @@ public class Agent
 
 		Runtime.getRuntime().addShutdownHook( new Thread( () -> 
 		{ 
-		    if ( DEBUG_DUMP_STATISTICS ) {
-		        System.out.println( Profile.printAllThreads() );
+		    if ( DEBUG_DUMP_STATISTICS ) 
+		    {
+		        System.out.println( Profile.printAll() );
 		    }
 		    if ( outputFile != null ) 
 		    {

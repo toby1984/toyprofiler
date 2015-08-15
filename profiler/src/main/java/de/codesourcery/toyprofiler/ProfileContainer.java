@@ -3,6 +3,8 @@ package de.codesourcery.toyprofiler;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import de.codesourcery.toyprofiler.Profile.MethodStats;
@@ -40,9 +42,9 @@ public class ProfileContainer implements IRawMethodNameProvider , Iterable<Profi
     }
     
     @Override
-    public String getRawMethodName(MethodStats stats) 
+    public String getRawMethodName(int methodId) 
     {
-        return methodNames.get( stats.getMethodId() );
+        return methodNames.get( methodId );
     }
 
     @Override
@@ -61,5 +63,17 @@ public class ProfileContainer implements IRawMethodNameProvider , Iterable<Profi
                 return it.next();
             }
         };
+    }
+
+    @Override
+    public int getMethodId(String rawMethodName) 
+    {
+        for ( final Entry<Integer, String> entry : methodNames.entrySet() ) 
+        {
+            if ( entry.getValue().equals( rawMethodName ) ) {
+                return entry.getKey();
+            }
+        }
+        throw new NoSuchElementException("Failed to resolve raw method name '"+rawMethodName+"'");
     }
 }

@@ -1,6 +1,7 @@
 package de.codesourcery.toyprofiler;
 
 import java.util.Arrays;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 import org.objectweb.asm.Type;
@@ -11,10 +12,45 @@ public class MethodStatsHelper
 {
     private final IRawMethodNameProvider resolver;
     
-    public static final MethodStatsHelper NOP_INSTANCE = new MethodStatsHelper( stats -> null );
+    public static final MethodStatsHelper NOP_INSTANCE = new MethodStatsHelper( new IRawMethodNameProvider() {
+        
+        @Override
+        public String getRawMethodName(int methodId) {
+            return null;
+        }
+        
+        @Override
+        public int getMethodId(String rawMethodName) {
+            throw new NoSuchElementException("Failed to resolve raw method name '"+rawMethodName+"'");
+        }
+    });
     
     public MethodStatsHelper(IRawMethodNameProvider resolver) {
         this.resolver = resolver;
+    }
+    
+    public String[] resolveMethodIds(int[] methodIds) 
+    {
+        final String[] result = new String[ methodIds.length ];
+        for ( int i = 0,len=result.length ; i < len ; i++ ) 
+        {
+            final String rawMethodName = resolver.getRawMethodName( methodIds[i] );
+            if ( rawMethodName == null ) {
+                throw new IllegalArgumentException("Failed to resolve method name for methodId "+methodIds[i]);
+            }
+            result[i] = rawMethodName;
+        }
+        return result;
+    }
+    
+    public int[] resolveMethodNames(String[] rawMethodNames) 
+    {
+        final int[] result = new int[ rawMethodNames.length ];
+        for ( int i = 0,len=result.length ; i < len ; i++ ) 
+        {
+            result[i] = resolver.getMethodId( rawMethodNames[i] );
+        }
+        return result;
     }
     
     public String getMethodName(MethodStats stats) {
@@ -70,6 +106,14 @@ public class MethodStatsHelper
         return buffer.toString();
     }        
     
+    public String print(Profile profile) 
+    {
+        if ( profile.getTopLevelMethod() == null ) {
+            return profile.toString();
+        }
+        return profile.toString()+"\n"+toString( profile.getTopLevelMethod() );
+    }
+    
     private void print(MethodStats node,StringBuilder buffer) {
         print("", node , true,buffer);
     }        
@@ -88,7 +132,7 @@ public class MethodStatsHelper
     
     public String getRawMethodName(MethodStats stats) 
     {
-        final String name =  resolver.getRawMethodName( stats );
+        final String name =  resolver.getRawMethodName( stats.getMethodId() );
         return name == null ? "<unknown class>|<unknown method>|()>" : name;
     }       
 }

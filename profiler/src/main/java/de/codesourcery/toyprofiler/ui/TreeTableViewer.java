@@ -85,7 +85,8 @@ public class TreeTableViewer extends Application {
                     case 2:
                         return format(((MethodStats) node.value()).getTotalTimeMillis());
                     case 3:
-                        return format( ((MethodStats) node.value()).getPercentageOfParentTime() );             
+                        final double percentageOfParentTime = 100*((MethodStats) node.value()).getPercentageOfParentTime();
+                        return format( percentageOfParentTime );             
                     case 4:
                         return format( ((MethodStats) node.value()).getOwnTimeMillis() );       
                     default:
@@ -148,7 +149,7 @@ public class TreeTableViewer extends Application {
         }
     }
 
-    protected static String format(float value) {
+    protected static String format(double value) {
         return DF.format( value );
     }
     

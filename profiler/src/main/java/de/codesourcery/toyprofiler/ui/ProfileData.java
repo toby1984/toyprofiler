@@ -138,7 +138,17 @@ public final class ProfileData implements IRawMethodNameProvider
     }
 
     @Override
-    public String getRawMethodName(MethodStats stats) {
-        return container.getRawMethodName( stats );
+    public String getRawMethodName(int methodId) {
+        return container.getRawMethodName( methodId );
+    }
+
+    @Override
+    public int getMethodId(String rawMethodName) {
+        return container.getMethodId( rawMethodName ); 
+    }
+
+    public Optional<Profile> getProfileByThreadName(String threadName) 
+    {
+        return profiles.stream().filter( p -> threadName.equals( p.getThreadName() ) ).findFirst();
     }
 }

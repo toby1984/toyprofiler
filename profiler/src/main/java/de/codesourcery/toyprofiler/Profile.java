@@ -1,7 +1,7 @@
 package de.codesourcery.toyprofiler;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -18,7 +20,7 @@ import de.codesourcery.toyprofiler.util.XMLSerializer;
 import net.openhft.koloboke.collect.map.hash.HashIntObjMap;
 import net.openhft.koloboke.collect.map.hash.HashIntObjMaps;
 
-public class Profile
+public class Profile 
 {
     private static final ConcurrentHashMap<Thread, Profile> PROFILES_BY_THREAD = new ConcurrentHashMap<>();
 
@@ -69,6 +71,21 @@ public class Profile
             this.totalTimeMillis = totalTimeMillis;
         }
         
+        public int[] getPathFromRoot() 
+        {
+            final List<Integer> path = new ArrayList<>();
+            addPathToRoot(path);
+            Collections.reverse( path );
+            return path.stream().mapToInt( v -> v.intValue() ).toArray();
+        }
+        
+        private void addPathToRoot(List<Integer> path) {
+            path.add( Integer.valueOf( method ) );
+            if ( parent != null ) {
+                parent.addPathToRoot( path );
+            }
+        }
+        
         public int getMethodId() {
             return method;
         }
@@ -92,13 +109,12 @@ public class Profile
         	callees.values().forEach( value -> value.visit( visitor , depth+1 ) );
         }
 
-        public float getPercentageOfParentTime()
+        public double getPercentageOfParentTime()
         {
             if ( parent == null ) {
-                return 100f;
+                return 1f;
             }
-            final float parentTime = parent.getTotalTimeMillis();
-            return 100f*( totalTimeMillis / parentTime );
+            return ( getTotalTimeMillis() / (double) parent.getTotalTimeMillis());
         }
 
 		public void onEnter()
@@ -244,22 +260,10 @@ public class Profile
         INSTANCE.get().onExit();
     }
 
-    public static String printThisThread() {
-        return INSTANCE.get().toString();
-    }
-
-    public static String printAllThreads()
-    {
-        return PROFILES_BY_THREAD.values().stream().map( profile -> profile.toString() ).collect( Collectors.joining("\n" ) );
-    }
-
     @Override
     public String toString()
     {
-        if ( topLevelMethod == null ) {
-            return "Thread[ "+threadName+"]\n<no top-level method>";
-        }
-        return "Thread[ "+threadName+"]\n"+topLevelMethod.toString();
+        return "Thread[ "+threadName+"]";
     }
 
 	public MethodStats getTopLevelMethod()
@@ -321,7 +325,59 @@ public class Profile
         return creationTime;
     }
 
-    public static void save(FileOutputStream fileOutputStream) throws IOException {
-        new XMLSerializer().save(ID_TO_METHOD_NAME,PROFILES_BY_THREAD.values() , fileOutputStream );
+    public static void save(OutputStream outputStream) throws IOException {
+        new XMLSerializer().save(ID_TO_METHOD_NAME,PROFILES_BY_THREAD.values() , outputStream );
+    }
+    
+    public static String printAll() 
+    {
+        final IRawMethodNameProvider provider = new IRawMethodNameProvider() {
+            
+            @Override
+            public String getRawMethodName(int methodId) {
+                return ID_TO_METHOD_NAME.get(methodId);
+            }
+            
+            @Override
+            public int getMethodId(String rawMethodName) 
+            {
+                for ( final Entry<Integer, String> entry : ID_TO_METHOD_NAME.entrySet() ) 
+                {
+                    if ( entry.getValue().equals( rawMethodName ) ) {
+                        return entry.getKey();
+                    }
+                }
+                throw new NoSuchElementException("Failed to resolve raw method name '"+rawMethodName+"'");                
+            }
+        };
+        final StringBuilder buffer = new StringBuilder();
+        final MethodStatsHelper helper = new MethodStatsHelper( provider );
+        PROFILES_BY_THREAD.values().stream().map( helper::print ).collect( Collectors.joining("\n") ); 
+        return buffer.toString();
+    }
+
+    public MethodStats lookupByPath(int[] methodIds) 
+    {
+        if ( topLevelMethod == null ) {
+            throw new IllegalStateException("lookupByPath() called on profile without top-level method");
+        }
+        if (methodIds.length == 0 ) {
+            throw new IllegalArgumentException("path too short");
+        }
+        MethodStats current = topLevelMethod;
+        if ( current.getMethodId() != methodIds[0] ) 
+        {
+            throw new NoSuchElementException("Path mismatch @ 0 , "+current.getMethodId()+" <-> "+methodIds[0] );
+        }
+        
+        for ( int i = 1 , len = methodIds.length ; i < len ; i++ ) 
+        {
+            MethodStats next = current.getCallees().get( methodIds[i] );
+            if ( next == null ) {
+                throw new NoSuchElementException("Path mismatch @ "+i+" , node has no successor with methodId "+methodIds[i]);
+            }
+            current = next;
+        }
+        return current;
     }
 }
