@@ -22,7 +22,7 @@ import de.codesourcery.toyprofiler.ProfileContainer;
 import net.openhft.koloboke.collect.map.hash.HashIntObjMap;
 import net.openhft.koloboke.collect.map.hash.HashIntObjMaps;
 
-public class XMLSerializer
+public class XMLSerializer implements IProfileIOAdapter
 {
     private MethodStats readMethodStats(XMLStreamReader reader) throws XMLStreamException 
     {
@@ -79,7 +79,6 @@ public class XMLSerializer
         final Profile profile = new Profile( threadName );
 
         profile.setCreationTime( Long.parseLong( readAttribute("creationTime" , "0" , reader ) ) );
-        profile.setMetaData( readAttribute("metaData",null,reader) );
 
         System.out.println("Loading profile '"+threadName+"'");
         final Stack<MethodStats> stack = new Stack<>();
@@ -117,6 +116,10 @@ public class XMLSerializer
         return profile;
     }
 
+    /* (non-Javadoc)
+     * @see de.codesourcery.toyprofiler.util.IProfileIOAdapter#load(java.io.InputStream)
+     */
+    @Override
     public ProfileContainer load(InputStream in) throws IOException
     {
         final List<Profile> result = new ArrayList<>();
@@ -164,8 +167,13 @@ public class XMLSerializer
         return new ProfileContainer( result , methodNameMap );
     }
 
+    /* (non-Javadoc)
+     * @see de.codesourcery.toyprofiler.util.IProfileIOAdapter#save(java.util.Map, java.util.Collection, java.io.OutputStream)
+     */
+    @Override
     public void save(Map<Integer,String> methodNameMap , Collection<Profile> profiles, OutputStream out) throws IOException
     {
+        boolean success = false;
         XMLStreamWriter writer = null;
         try
         {
@@ -200,6 +208,7 @@ public class XMLSerializer
 
             writer.writeEndDocument();
             writer.close();
+            success = true;
         }
         catch (XMLStreamException e)
         {
@@ -209,7 +218,29 @@ public class XMLSerializer
         {
             if ( writer != null )
             {
-                try { writer.close(); } catch(XMLStreamException e) { /* ok */ }
+                try {
+                    writer.close(); 
+                }
+                catch(XMLStreamException e) 
+                { 
+                    if ( success ) 
+                    {
+                        throw new IOException(e);
+                    }
+                }
+            } 
+            else 
+            {
+                try { 
+                    out.close(); 
+                } 
+                catch(IOException e) 
+                { 
+                    if ( success ) 
+                    {
+                        throw new IOException(e);
+                    }
+                }
             }
         }
     }
@@ -219,9 +250,6 @@ public class XMLSerializer
         writer.writeStartElement("profile");
         writer.writeAttribute("threadName" , p.getThreadName() );
         writer.writeAttribute("creationTime" , Long.toString( p.getCreationTimeMillis() ) );
-        if ( p.getMetaData().isPresent() ) {
-            writer.writeAttribute("metaData" , p.getMetaData().get() );
-        }
 
         if ( p.getTopLevelMethod() != null )
         {

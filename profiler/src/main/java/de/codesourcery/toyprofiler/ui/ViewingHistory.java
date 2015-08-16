@@ -2,15 +2,17 @@ package de.codesourcery.toyprofiler.ui;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
 import de.codesourcery.toyprofiler.Profile;
 import de.codesourcery.toyprofiler.ProfileContainer;
+import de.codesourcery.toyprofiler.util.IProfileIOAdapter;
 import de.codesourcery.toyprofiler.util.XMLSerializer;
 
 public final class ViewingHistory 
@@ -27,9 +29,9 @@ public final class ViewingHistory
     public void addListener(IViewChangeListener l) {
         this.listeners.add(l);
     }
-
-    public Optional<File> latestFile() {
-        return latest().filter( ProfileData::hasFile ).flatMap( ProfileData::getSourceFile );
+    
+    public void removeListener(IViewChangeListener l) {
+        this.listeners.remove(l);
     }
 
     public Optional<File> currentFile() {
@@ -45,12 +47,12 @@ public final class ViewingHistory
         return new ArrayList<>( history );
     }
 
-    void add(File file,ProfileContainer container) 
+    public void add(File file,ProfileContainer container) 
     {
         Optional<Profile> newSelection = findSameProfile( container );
         if ( ! newSelection.isPresent() && container.size() > 0 ) 
         {
-            newSelection = Optional.of( container.getProfiles().stream().filter( ProfileData::isSelected ).findFirst().orElse( container.getProfiles().get(0) ) );
+            newSelection = Optional.of( container.getProfiles().get(0) );
         }
         history.add( new ProfileData( file ,  container ,  newSelection ) );
         ptr = history.size()-1;
@@ -105,6 +107,10 @@ public final class ViewingHistory
         history.clear();
         ptr=0;
         notifyListeners(Optional.empty());
+    }
+    
+    public void historyChanged() {
+        notifyListeners( current() );
     }
 
     private void notifyListeners(Optional<ProfileData> data) {
@@ -186,8 +192,18 @@ public final class ViewingHistory
     {
         return ptr < history.size() ? Optional.of( history.get( ptr ) ) : Optional.empty();
     }
+    
+    public Optional<ProfileData> previous() 
+    {
+        int prev = ptr-1;
+        if ( prev >= 0 && prev < history.size() ) 
+        {
+            return Optional.of( history.get(prev) );
+        }
+        return Optional.empty();
+    }
 
-    public boolean previous() 
+    public boolean jumpToPrevious() 
     {
         if ( ptr > 0 ) {
             ptr--;
@@ -197,7 +213,7 @@ public final class ViewingHistory
         return false;
     }
 
-    public boolean next() 
+    public boolean jumpToNext() 
     {
         if ( (ptr+1) < history.size() ) {
             ptr++;
@@ -217,6 +233,16 @@ public final class ViewingHistory
         }
         if ( notify ) {
             notifyListeners( current() );
+        }
+    }
+    
+    public void saveCurrent(File file,IProfileIOAdapter ioAdapter) throws IOException 
+    {
+        if ( current().isPresent() ) 
+        {
+            final ProfileData profileData = current().get();
+            ioAdapter.save( profileData.getMethodMap() , profileData.getProfiles() , new FileOutputStream( file ) );
+            profileData.setFile( file );
         }
     }
 }

@@ -1,5 +1,7 @@
 package de.codesourcery.toyprofiler;
 
+import java.util.Map;
+
 public interface IRawMethodNameProvider
 {
     /**
@@ -10,4 +12,6 @@ public interface IRawMethodNameProvider
     public String getRawMethodName(int methodId);
     
     public int getMethodId(String rawMethodName);
+    
+    public Map<Integer,String> getMethodMap();
 }

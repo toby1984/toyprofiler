@@ -21,7 +21,7 @@ public class FlameGraphRenderer<T>
     private int height;
     private int heightPerRow;
 
-    private Color[] gradient;
+    private ColorScheme colorScheme;
 
     private boolean doRender;
 
@@ -50,30 +50,8 @@ public class FlameGraphRenderer<T>
         public String getLabel(T node,Graphics2D graphics,int maxWidth);
     }
 
-    public static Color[] createGradient(final Color src ,final Color dst,int colorCount) 
-    {
-        final Color[] gradient = new Color[colorCount];
-
-        float dr = (dst.getRed()/255f - src.getRed()/255f)/colorCount;
-        float dg = (dst.getGreen()/255f - src.getGreen()/255f)/colorCount;
-        float db = (dst.getBlue()/255f - src.getBlue()/255f)/colorCount;
-
-        float r = src.getRed()/255f;
-        float g = src.getGreen()/255f;
-        float b = src.getBlue()/255f;
-
-        for ( int i = 0 ; i < colorCount ; i++)
-        {
-            gradient[i] = new Color( r , g , b );
-            r += dr;
-            g += dg;
-            b += db;
-        }
-        return gradient;
-    }
-
-    public void setGradient(Color[] gradient) {
-        this.gradient = gradient;
+    public void setColorScheme(ColorScheme scheme) {
+        this.colorScheme = scheme;
     }
 
     public static final class RectangularRegion<T> extends Rectangle
@@ -135,15 +113,10 @@ public class FlameGraphRenderer<T>
         }
     }
 
-    public FlameGraphRenderer(IDataProvider<T> provider)
-    {
-        this(provider,6);
-    }
-
-    public FlameGraphRenderer(IDataProvider<T> provider,int colorCount)
+    public FlameGraphRenderer(IDataProvider<T> provider,ColorScheme colorScheme)
     {
         this.dataProvider = provider;
-        this.gradient = createGradient( Color.RED.darker() , Color.ORANGE , colorCount );
+        this.colorScheme = colorScheme;
     }
 
     private int calcMaxDepth(T root)
@@ -162,6 +135,7 @@ public class FlameGraphRenderer<T>
 
     private void reset(T root,int width,int height)
     {
+        this.regions.clear();
         this.doRender = true;
         this.maxDepth = calcMaxDepth( root );
         this.height = height;
@@ -244,11 +218,11 @@ public class FlameGraphRenderer<T>
             heightPerRow = height / (maxDepth+1);
 
             final Rectangle currentBox = new Rectangle(0,height-heightPerRow,width,heightPerRow);
-            processPath( 0 , root , currentBox , 1 );
+            processPath( 0 , 1, root , currentBox , 1 );
         }
     }
 
-    private void processPath(int currentColor,T parent,Rectangle rect,int currentDepth)
+    private void processPath(int currentColor,int colorIndexIncrement,T parent,Rectangle rect,int currentDepth)
     {
         regions.add( new RectangularRegion<T>(rect, parent) );
 
@@ -256,7 +230,18 @@ public class FlameGraphRenderer<T>
         {
             render( currentColor , parent , rect );
         }
-        currentColor++;
+
+        currentColor += colorIndexIncrement;
+        if ( currentColor == colorScheme.getColorCount() ) 
+        {
+            currentColor -= 2;
+            colorIndexIncrement = -1;
+        }
+        else if ( currentColor == -1 ) 
+        {
+            currentColor += 2;
+            colorIndexIncrement = 1;
+        }
 
         final List<T> sorted = dataProvider.getChildren( parent ) ; 
 
@@ -269,22 +254,34 @@ public class FlameGraphRenderer<T>
             final int w = (int) ( rect.width * percentageThisNode);
 
             final Rectangle currentBox = new Rectangle( x  , y , w ,heightPerRow);
-            processPath( currentColor , child , currentBox , currentDepth+1 );
-            currentColor++;
+            processPath( currentColor , colorIndexIncrement , child , currentBox , currentDepth+1 );
+
+            currentColor += colorIndexIncrement;
+            if ( currentColor == colorScheme.getColorCount() ) 
+            {
+                currentColor -= 2;
+                colorIndexIncrement = -1;
+            }
+            else if ( currentColor == -1 ) 
+            {
+                currentColor += 2;
+                colorIndexIncrement = 1;
+            }
+
             x += w;
         }
     }
 
     private void render(int currentColorIndex , T node,Rectangle r) {
 
-        graphics.setColor( gradient[ currentColorIndex % gradient.length ] );
+        graphics.setColor( colorScheme.color( currentColorIndex ) );
 
         graphics.fillRect( r.x , r.y , r.width , r.height );
 
         if ( dataProvider.isShowDifferences() ) 
         {
             final double delta = dataProvider.getPercentageValue( node ) - dataProvider.getPreviousPercentageValue( node );
-            final Color color = delta > 0 ? Color.RED : Color.GREEN;
+            final Color color = delta > 0 ? colorScheme.getBadDifferenceColor() : colorScheme.getGoodDifferenceColor();
             final int w = (int) (r.width * Math.abs(delta));
             graphics.setColor( color );
             graphics.fillRect( r.x+r.width-w , r.y , w , r.height );
@@ -297,6 +294,11 @@ public class FlameGraphRenderer<T>
     }
 
     private void drawCentered(String text,Rectangle rectangle)
+    {
+        drawCentered(text,rectangle,graphics);
+    }
+
+    public static void drawCentered(String text,Rectangle rectangle,Graphics2D graphics)
     {
         final FontMetrics fm = graphics.getFontMetrics();
         final int x = rectangle.x + (rectangle.width - fm.stringWidth(text)) / 2;

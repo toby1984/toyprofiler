@@ -6,18 +6,18 @@ import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import de.codesourcery.toyprofiler.IRawMethodNameProvider;
 import de.codesourcery.toyprofiler.Profile;
 import de.codesourcery.toyprofiler.ProfileContainer;
-import de.codesourcery.toyprofiler.Profile.MethodStats;
+import de.codesourcery.toyprofiler.util.IProfileIOAdapter;
 import de.codesourcery.toyprofiler.util.ParameterMap;
-import de.codesourcery.toyprofiler.util.XMLSerializer;
 
 public final class ProfileData implements IRawMethodNameProvider
 {
-    private final File sourceFile;
+    private File sourceFile;
     private final ProfileContainer container;
     private final List<Profile> profiles;
     private Profile selectedProfile;
@@ -39,7 +39,11 @@ public final class ProfileData implements IRawMethodNameProvider
         return isDirty;
     }
     
-    public void save(XMLSerializer serializer) throws IOException 
+    public void setFile( File sourceFile ) {
+        this.sourceFile = sourceFile;
+    }
+    
+    public void save(IProfileIOAdapter serializer) throws IOException 
     {
         if ( isDirty && hasFile() ) 
         {
@@ -106,31 +110,7 @@ public final class ProfileData implements IRawMethodNameProvider
     
     public void setSelectedProfile(Profile selectedProfile) 
     {
-        if ( this.selectedProfile != null ) { // deselect current
-            setSelected(this.selectedProfile,false);
-        }
         this.selectedProfile = selectedProfile;
-        if ( selectedProfile != null ) { // select new
-            setSelected( selectedProfile , true );
-        }
-        // make sure only one profile is selected
-        profiles.stream().filter( ProfileData::isSelected ).filter( profile -> profile != selectedProfile ).forEach( profile -> setSelected(profile,false) );
-    }
-    
-    public static boolean isSelected(Profile p) {
-        return p.getMetaDataMap().getBoolean("selected",false);
-    }
-    
-    private void setSelected(Profile p,boolean isSelected) 
-    {
-        final ParameterMap map = p.getMetaDataMap();
-        final String newValue = Boolean.toString( isSelected );
-        if ( ! map.hasKey( "selected" ) || ! newValue.equals( map.get("selected" ) ) ) 
-        {
-            map.put("selected", newValue );
-            p.mergeMetaData( map );
-            isDirty = true;
-        }
     }
     
     public Optional<String> getSelectedThreadName() {
@@ -150,5 +130,10 @@ public final class ProfileData implements IRawMethodNameProvider
     public Optional<Profile> getProfileByThreadName(String threadName) 
     {
         return profiles.stream().filter( p -> threadName.equals( p.getThreadName() ) ).findFirst();
+    }
+
+    @Override
+    public Map<Integer, String> getMethodMap() {
+        return container.getMethodMap();
     }
 }

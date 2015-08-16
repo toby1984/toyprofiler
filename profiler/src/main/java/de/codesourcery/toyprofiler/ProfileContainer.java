@@ -7,8 +7,6 @@ import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
-import de.codesourcery.toyprofiler.Profile.MethodStats;
-
 public class ProfileContainer implements IRawMethodNameProvider , Iterable<Profile>
 {
     private final List<Profile> profiles;
@@ -75,5 +73,10 @@ public class ProfileContainer implements IRawMethodNameProvider , Iterable<Profi
             }
         }
         throw new NoSuchElementException("Failed to resolve raw method name '"+rawMethodName+"'");
+    }
+
+    @Override
+    public Map<Integer, String> getMethodMap() {
+        return methodNames;
     }
 }

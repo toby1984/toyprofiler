@@ -5,17 +5,12 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.FontMetrics;
 import java.awt.Frame;
-import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.HeadlessException;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
@@ -25,11 +20,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.text.DecimalFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 import javax.swing.DefaultComboBoxModel;
@@ -46,20 +39,16 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
-import javax.swing.table.DefaultTableModel;
+import javax.swing.filechooser.FileFilter;
 
 import de.codesourcery.toyprofiler.MethodStatsHelper;
 import de.codesourcery.toyprofiler.Profile;
 import de.codesourcery.toyprofiler.Profile.MethodStats;
-import de.codesourcery.toyprofiler.ui.FlameGraphPanel.IMethodStatSelectionListener;
-import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.FlameGraph;
 import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.IDataProvider;
 import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.IVisitor;
-import de.codesourcery.toyprofiler.ui.ViewingHistory.IViewChangeListener;
+import de.codesourcery.toyprofiler.util.IProfileIOAdapter;
 import de.codesourcery.toyprofiler.util.XMLSerializer;
 
 public class FlameGraphViewer extends JFrame
@@ -75,10 +64,15 @@ public class FlameGraphViewer extends JFrame
     
     private File lastExportedImage;
     
+    private final IProfileIOAdapter ioAdapter = new XMLSerializer();
+    
     private final FlameGraphPanel graphPanel; 
     
-    private final ViewingHistory history = new ViewingHistory();
-    private final HistoryDialog historyDialog = new HistoryDialog();
+    private final Preferences preferences = new Preferences();
+    
+    private final ViewingHistory history;
+    
+    private final HistoryDialog historyDialog = new HistoryDialog(preferences);
 
     public static final class MethodDataProvider implements IDataProvider<MethodStats> 
     {
@@ -175,82 +169,12 @@ public class FlameGraphViewer extends JFrame
         }
     }
 
-    protected final class SelectionInfoPanel extends JPanel implements IMethodStatSelectionListener 
-    {
-        private final JTextField className = new JTextField();
-        private final JTextField methodName = new JTextField();
-        private final JTextField invocations = new JTextField();
-        private final JTextField totalTime = new JTextField();
-        private final JTextField ownTime = new JTextField();
-
-        public SelectionInfoPanel() 
-        {
-            setLayout( new GridBagLayout() );
-            label( "Class:" , 0 );       
-            textfield( className ,1 , 0.3 );   // 0.3
-
-            label( "Method:" , 2 );      
-            textfield( methodName , 3 , 0.3 ); // 0.3
-
-            label( "Invocations:" , 4 ); 
-            textfield( invocations ,5 , 0.1333 );  // 0.13
-
-            label( "Total time:" ,6  );   
-            textfield( totalTime ,7 , 0.1333 );    // 0.13
-            
-            label( "Own time:" ,8  );   
-            textfield( ownTime ,9 , 0.1333 );    // 0.13          
-        }
-
-        private GridBagConstraints cnstrs(int x,double weightX) 
-        {
-            final GridBagConstraints cnstrs = new GridBagConstraints();
-            cnstrs.weightx=weightX;
-            cnstrs.weighty=0;
-            cnstrs.gridx=x;
-            cnstrs.gridy=0;
-            cnstrs.fill = GridBagConstraints.HORIZONTAL;
-            return cnstrs;
-        }
-
-        private GridBagConstraints labelCnstrs(int x) 
-        {
-            final GridBagConstraints cnstrs = new GridBagConstraints();
-            cnstrs.weightx=0;
-            cnstrs.weighty=0;
-            cnstrs.gridx=x;
-            cnstrs.gridy=0;
-            cnstrs.fill = GridBagConstraints.NONE;
-            return cnstrs;
-        }
-
-        private void textfield(JTextField tf,int x,double weightX) {
-            tf.setEditable(false);
-            add( tf ,cnstrs( x, weightX ) );
-        }
-
-        private void label(String text,int x) {
-            add( new JLabel( text) , labelCnstrs(x) );
-        }
-
-        @Override
-        public void selectionChanged(MethodStats s , MethodStatsHelper resolver ) {
-            className.setText( s == null ? "" : resolver.getClassName(s) );
-            methodName.setText( s == null ? "" : resolver.getMethodName(s)+"("+resolver.getMethodSignature(s)+")" );
-            invocations.setText( s == null ? "" : INVOCATION_COUNT_FORMAT.format( s.getInvocationCount() ) );
-            totalTime.setText( s == null ? "" : millisToString( s.getTotalTimeMillis() ) );
-            ownTime.setText( s == null ? "" : millisToString( s.getOwnTimeMillis() ) );            
-        }
-    }
-    
     public static void main(String[] args) throws FileNotFoundException, IOException, HeadlessException, InvocationTargetException, InterruptedException
     {
-        if ( args.length != 1 ) {
-            throw new RuntimeException("Expected exactly one argument (XML file to load)");
-        }
-        
         final FlameGraphViewer viewer = new FlameGraphViewer();
-        viewer.loadProfiles( new File( args[0] ) );
+        if ( args.length > 0 ) {
+            viewer.loadProfiles( new File[] { new File( args[0] ) } );
+        }
     }
 
     private void updateTitle(Optional<ProfileData> current)
@@ -273,6 +197,25 @@ public class FlameGraphViewer extends JFrame
     public FlameGraphViewer() throws FileNotFoundException, IOException
     {
         setDefaultCloseOperation( JFrame.EXIT_ON_CLOSE );
+        
+        preferences.load();
+        
+        history = preferences.getHistory( ioAdapter );
+        
+        historyDialog.setHistory( history );
+        
+        Runtime.getRuntime().addShutdownHook( new Thread( () -> 
+        {
+            try 
+            {
+                System.out.println("Exiting...");
+                preferences.setHistory( history );
+                preferences.save();
+            } 
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+        }));
 
         profileSelector.setRenderer( new DefaultListCellRenderer() 
         {
@@ -292,7 +235,7 @@ public class FlameGraphViewer extends JFrame
 
         setJMenuBar( createMenuBar() );
         
-        graphPanel = new FlameGraphPanel();
+        graphPanel = new FlameGraphPanel( preferences );
         graphPanel.addListener( selectionInfoPanel );
         
         history.addListener( graphPanel );
@@ -328,7 +271,7 @@ public class FlameGraphViewer extends JFrame
         cnstrs.gridx=0;
         cnstrs.gridy=0;
         cnstrs.fill = GridBagConstraints.NONE;
-        compound.add( new JLabel("Profile:"), cnstrs );
+        compound.add( new JLabel("Thread:"), cnstrs );
 
         // add selection Box
         cnstrs = new GridBagConstraints();
@@ -360,28 +303,93 @@ public class FlameGraphViewer extends JFrame
         getContentPane().add( compound );
         setPreferredSize( new Dimension(640,480 ) );
         pack();
+        setLocationRelativeTo( null );
         setVisible( true );
+        
+        history.historyChanged();
     }
 
     private JMenuBar createMenuBar() 
     {
         final JMenuBar result = new JMenuBar();
 
-        final JMenu fileMenu = new JMenu("File");
-        result.add( fileMenu );
-
-        addMenuItem("Load profiles...",()->  loadProfiles() , fileMenu );
-        addMenuItem("History...", this::showHistory, fileMenu , key( KeyEvent.VK_H) );
-        addMenuItem("Reload", history::reloadCurrent , fileMenu , key( KeyEvent.VK_F5 ) );
-        addMenuItem("Previous", history::previous , fileMenu , key( KeyEvent.VK_LEFT) );
-        addMenuItem("Next", history::next , fileMenu , key( KeyEvent.VK_RIGHT ) );
-        addMenuItem("Export image...", this::exportImage , fileMenu );
+        // 'History' menu
+        final JMenu historyMenu = new JMenu("History");
+        addMenuItem("Previous", history::jumpToPrevious , historyMenu , key( KeyEvent.VK_LEFT) );
+        addMenuItem("Next", history::jumpToNext , historyMenu , key( KeyEvent.VK_RIGHT ) );
+        addMenuItem("History...", this::showHistory, historyMenu , key( KeyEvent.VK_H) );
         
+        // 'Tools' menu
+        final JMenu toolsMenu = new JMenu("Tools");
+        addMenuItem("Export image...", this::exportImage , toolsMenu );
+
+
+        // 'File' menu
+        final JMenu fileMenu = new JMenu("File");
+        addMenuItem("Quit", () -> System.exit(0) , fileMenu );
+        fileMenu.addSeparator();
+        addMenuItem("Load profiles...",()->  loadProfiles() , fileMenu );
+        addMenuItem("Close current", this::closeCurrent, fileMenu , key( KeyEvent.VK_W, KeyEvent.CTRL_DOWN_MASK ) );
+        
+        addMenuItem("Reload", history::reloadCurrent , fileMenu , key( KeyEvent.VK_F5 ) );
+        
+        addMenuItem("Preferences...", this::editPreferences, fileMenu );
+        
+        // register top-level menus
+        result.add( fileMenu );
+        result.add( historyMenu );
+        result.add( toolsMenu );   
         return result;
     }
     
+    private void editPreferences() {
+        
+        final JDialog dialog = new JDialog((Frame) null,"Preferences",true);
+        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        
+        final PreferencesPanel panel = new PreferencesPanel( preferences) {
+            
+            @Override
+            protected void onSave(Preferences preferences) 
+            {
+                try 
+                {
+                    preferences.save();
+                } catch (IOException e) {
+                    error("Saving preferences failed",e);
+                } finally {
+                    dialog.dispose();
+                }
+                preferences.notifyChange();
+            }
+            
+            @Override
+            protected void cancel() {
+                dialog.dispose();
+            }
+        };
+        
+        dialog.add( panel );
+        
+        dialog.pack();
+        dialog.setLocationRelativeTo( null );
+        dialog.setVisible( true );
+    }
+    
+    private void closeCurrent() {
+        
+        if ( history.current().isPresent() ) 
+        {
+            history.unload( Collections.singletonList( history.current().get() ) );
+        }
+    }
+    
+    private static KeyStroke key(int keyCode,int modifiers) {
+        return KeyStroke.getKeyStroke( keyCode , modifiers );
+    }
+    
     private static KeyStroke key(int keyCode) {
-        return KeyStroke.getKeyStroke( keyCode , 0 );
+        return key(keyCode,0);
     }
     
     private JMenuItem addMenuItem(String label,Runnable action,JMenu menu) {
@@ -401,229 +409,6 @@ public class FlameGraphViewer extends JFrame
         return item;
     }
     
-    protected final class HistoryTableModel extends DefaultTableModel implements IViewChangeListener
-    {
-        private final List<ProfileData> data = new ArrayList<>();
-        
-        public String getColumnName(int column) 
-        {
-            switch(column) 
-            {
-                case 0: return "Active";
-                case 1: return "File";
-                case 2: return "Timestamp";
-                case 3: return "Description";
-                default:
-                    throw new IllegalArgumentException();
-            }
-        }
-        
-        @Override
-        public int getRowCount() {
-            return data != null ? data.size() : 0;
-        }
-        
-        public int getColumnCount() {
-            return 4;
-        }
-        
-        public java.lang.Class<?> getColumnClass(int column) {
-            switch(column) 
-            {
-                case 0: return Boolean.class;
-                case 1: 
-                case 2: 
-                case 3: 
-                    return String.class;
-                default:
-                    throw new IllegalArgumentException();
-            }
-        }
-        
-        public ProfileData getRow(int row) {
-            return data.get(row);
-        }
-        
-        public Object getValueAt(int row, int column) 
-        {
-            final ProfileData item = getRow(row);
-            switch( column ) 
-            {
-                case 0:
-                    return history.current().isPresent() && history.current().get() == item;
-                case 1:
-                    return item.getSourceFile().map( f -> f.getAbsolutePath() ).orElse("<no file>");
-                case 2:
-                    return item.getTimestamp().map( DATE_PATTERN::format ).orElse( "<no timestamp>");
-                case 3:
-                    return item.getDescription().orElse("");
-               default:
-                   throw new IllegalArgumentException();
-            }
-        }
-        
-        @Override
-        public boolean isCellEditable(int row, int column) 
-        {
-            switch(column) {
-                case 0:
-                case 1:
-                case 2: 
-                    return false;
-                case 3:
-                    return getRow(row).getSelectedProfile().isPresent();
-                default:
-                    throw new IllegalArgumentException();
-            }
-        }
-        
-        @Override
-        public void setValueAt(Object aValue, int row, int column) 
-        {
-            if ( column != 3 || !(aValue instanceof String) ) {
-                throw new IllegalArgumentException(); 
-            }
-            getRow(row).setDescription( (String) aValue );
-        }
-
-        @Override
-        public void viewChanged(Optional<ProfileData> data,boolean triggeredFromComboBox) 
-        {
-            this.data.clear();
-            this.data.addAll( history.getItems() );
-            fireTableDataChanged();
-        }
-    }
-    
-    protected class HistoryDialog extends JDialog implements IViewChangeListener
-    {
-        private final HistoryTableModel tableModel = new HistoryTableModel();
-        private final JTable table = new JTable( tableModel);
-        
-        public HistoryDialog() 
-        {
-            setDefaultCloseOperation( JDialog.HIDE_ON_CLOSE );
-
-            final JPanel panel = new JPanel();
-            final JButton closeDialog = new JButton("Hide window");
-            closeDialog.addActionListener( ev -> 
-            {
-                setVisible(false);
-            });
-            
-            final JButton unloadProfile = new JButton("Unload");
-            unloadProfile.addActionListener( ev -> 
-            {
-                final int[] rows = table.getSelectedRows();
-                final List<ProfileData> toUnload = Arrays.stream( rows ).mapToObj( idx -> tableModel.getRow(idx) ).collect( Collectors.toList() );
-                history.unload( toUnload );
-            });            
-            
-            final JButton compare = new JButton("Compare");
-            compare.addActionListener( new ActionListener() 
-            {
-                @Override
-                public void actionPerformed(ActionEvent ev) {
-                    final int[] rows = table.getSelectedRows();
-                    if ( rows.length != 2 ) {
-                        error("You need to select exactly 2 rows");
-                        return;
-                    }
-                    
-                    final int min = Math.min(rows[0],rows[1]);
-                    final int max = Math.max(rows[0],rows[1]);
-                    
-                    final ProfileData previous = tableModel.getRow(min);
-                    final ProfileData current  = tableModel.getRow(max);
-                    
-                    if ( ! current.getSelectedThreadName().isPresent() ) {
-                        error("Profile "+current+" has no thread selected");
-                        return;
-                    }                
-                    
-                    final Profile currentProfile = current.getSelectedProfile().get();
-                    final Optional<Profile> previousProfile = previous.getProfileByThreadName( currentProfile.getThreadName() );
-                    if ( ! previousProfile.isPresent() ) {
-                        error("Profile "+previous+" has no thread named '"+currentProfile.getThreadName() );
-                        return;
-                    } 
-                    final MethodStatsHelper previousResolver = new MethodStatsHelper( previous );
-                    final MethodStatsHelper currentResolver = new MethodStatsHelper( current );
-                    final IDataProvider<MethodStats> dataProvider = new MethodDataProvider(currentProfile, previousProfile.get(), previousResolver, currentResolver );
-                    final FlameGraphRenderer<MethodStats> cmpRenderer = new FlameGraphRenderer<MethodStats>( dataProvider );
-                    
-                    final JPanel panel = new JPanel() 
-                    {
-                        @Override
-                        public void paint(Graphics g) 
-                        {
-                            final FlameGraph<MethodStats> graph = cmpRenderer.render( getWidth() , getHeight() );
-                            g.drawImage( graph.getImage() , 0 , 0 , null );
-                        }
-                    };
-                    final JDialog tmp = new JDialog((Frame) null,"Comparison",true);
-                    tmp.setDefaultCloseOperation( JDialog.DISPOSE_ON_CLOSE );
-                    
-                    tmp.add( panel );
-                    
-                    tmp.setPreferredSize( new Dimension(400, 400 ) );
-                    tmp.pack();
-                    tmp.setLocationRelativeTo(null);
-                    tmp.setVisible(true);
-                }
-            });            
-            
-            table.setPreferredSize( new Dimension(400,400 ) );
-            panel.add( new JScrollPane(table ) );
-            panel.add( closeDialog );
-            panel.add( compare );
-            panel.add( unloadProfile );
-            add( panel );
-            
-            table.addMouseListener( new MouseAdapter() {
-                
-                public void mouseClicked(MouseEvent e) 
-                {
-                    if ( e.getClickCount() >= 2 && e.getButton() == MouseEvent.BUTTON1 ) 
-                    {
-                        final int row = table.rowAtPoint( e.getPoint() );
-                        if ( row != -1 ) 
-                        {
-                            final ProfileData clicked = tableModel.getRow(row);
-                            history.jumpTo( clicked );
-                        }
-                    }
-                }
-            });
-        }
-        
-        @Override
-        public void setVisible(boolean b) 
-        {
-            if ( b ) {
-                pack();
-                setLocationRelativeTo( null );
-            }
-            super.setVisible(b);
-        }
-
-        @Override
-        public void viewChanged(Optional<ProfileData> data,boolean triggeredFromComboBox) 
-        {
-            tableModel.viewChanged(data, triggeredFromComboBox);
-            if ( data.isPresent() ) 
-            {
-                for ( int row = 0 ; row < tableModel.getRowCount() ; row++ ) 
-                {
-                    if ( tableModel.getRow( row ) == history.current().get() ) 
-                    {
-                        table.getSelectionModel().setSelectionInterval( row ,row );
-                    }
-                }
-            }
-        }
-    }
-    
     private void showHistory() 
     {
         historyDialog.setVisible( true );
@@ -631,30 +416,48 @@ public class FlameGraphViewer extends JFrame
     
     private void loadProfiles() 
     {
-        final JFileChooser chooser;
-        final Optional<File> latestFile = history.latestFile();
+        final JFileChooser chooser = new JFileChooser( );
+        final Optional<File> latestFile = preferences.getLastLoadDirectory();
         if ( latestFile.isPresent() ) 
         {
-            chooser = new JFileChooser( latestFile.get() );
-            chooser.setSelectedFile( latestFile.get() );
-        } else {
-            chooser = new JFileChooser();
+            chooser.setCurrentDirectory( latestFile.get() );
         }
-        if ( chooser.showOpenDialog( null ) == JFileChooser.APPROVE_OPTION ) 
+        
+        chooser.setFileHidingEnabled(true);
+        chooser.setMultiSelectionEnabled(true);
+        chooser.setFileFilter( new FileFilter() 
         {
-            loadProfiles( chooser.getSelectedFile() );
+            @Override
+            public String getDescription() {
+                return "XML profile files";
+            }
+            
+            @Override
+            public boolean accept(File f) 
+            {
+                return f.isDirectory() || ( f.isFile() && f.getName().endsWith(".xml") );
+            }
+        });
+        
+        if ( chooser.showOpenDialog( null ) == JFileChooser.APPROVE_OPTION && chooser.getSelectedFiles().length >= 1 ) 
+        {
+            preferences.setLastLoadDirectory( chooser.getSelectedFiles()[0].getParentFile() );
+            loadProfiles( chooser.getSelectedFiles() );
         }
     }
     
-    private void loadProfiles(File file) 
+    private void loadProfiles(File[] files) 
     {
-        try ( FileInputStream in =new FileInputStream(file) )
+        for ( File file : files ) 
         {
-            history.add( file , new XMLSerializer().load( in ) );
-        } 
-        catch(Exception e) 
-        {
-            error("Failed to load data from "+file.getAbsolutePath()+" ("+e.getMessage()+")",e);
+            try ( FileInputStream in =new FileInputStream(file) )
+            {
+                history.add( file , ioAdapter.load( in ) );
+            } 
+            catch(Exception e) 
+            {
+                error("Failed to load data from "+file.getAbsolutePath()+" ("+e.getMessage()+")",e);
+            }
         }
     }
     

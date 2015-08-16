@@ -349,6 +349,11 @@ public class Profile
                 }
                 throw new NoSuchElementException("Failed to resolve raw method name '"+rawMethodName+"'");                
             }
+
+            @Override
+            public Map<Integer, String> getMethodMap() {
+                return ID_TO_METHOD_NAME;
+            }
         };
         final StringBuilder buffer = new StringBuilder();
         final MethodStatsHelper helper = new MethodStatsHelper( provider );

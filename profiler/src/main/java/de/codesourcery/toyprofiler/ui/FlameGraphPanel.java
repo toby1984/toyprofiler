@@ -1,8 +1,10 @@
 package de.codesourcery.toyprofiler.ui;
 
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
@@ -135,6 +137,8 @@ public final class FlameGraphPanel extends JPanel implements IViewChangeListener
             }
         }
     };
+
+    private Preferences preferences;
     
     public void addListener( IMethodStatSelectionListener l ) {
         this.listeners.add(l);
@@ -156,17 +160,24 @@ public final class FlameGraphPanel extends JPanel implements IViewChangeListener
             dataProvider = null;
             resolver = MethodStatsHelper.NOP_INSTANCE;
         }
-        renderer = new FlameGraphRenderer<MethodStats>( dataProvider );
+        renderer = new FlameGraphRenderer<MethodStats>( dataProvider , preferences.getDefaultColorScheme() );
         forcedRepaint();
     }
 
-    public FlameGraphPanel()
+    public FlameGraphPanel(Preferences preferences)
     {
+        this.preferences = preferences;
+        preferences.addListener( prefs -> 
+        {
+            renderer.setColorScheme( prefs.getDefaultColorScheme() );
+            forcedRepaint();
+        });
+        
         addMouseListener( mouseListener );
         addMouseMotionListener( mouseListener);
     }
 
-    public void forcedRepaint() {
+    private void forcedRepaint() {
         graph = null;
         repaint();
     }
@@ -187,9 +198,15 @@ public final class FlameGraphPanel extends JPanel implements IViewChangeListener
     @Override
     protected void paintComponent(Graphics g)
     {
-        if ( dataProvider == null ) 
+        if ( dataProvider == null || renderer == null ) 
         {
+            setBackground(Color.WHITE);
             super.paintComponent(g);
+            Font oldFont = g.getFont();
+            final Font newFont = oldFont.deriveFont( Font.BOLD ,  32f );
+            g.setFont( newFont );
+            FlameGraphRenderer.drawCentered("< no data loaded >", new Rectangle(0,0,getWidth(),getHeight() ), (Graphics2D) g);
+            g.setFont( oldFont );
             return;
         }
         

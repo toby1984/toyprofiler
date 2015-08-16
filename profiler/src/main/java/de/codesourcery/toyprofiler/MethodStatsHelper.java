@@ -1,6 +1,8 @@
 package de.codesourcery.toyprofiler;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
@@ -22,6 +24,11 @@ public class MethodStatsHelper
         @Override
         public int getMethodId(String rawMethodName) {
             throw new NoSuchElementException("Failed to resolve raw method name '"+rawMethodName+"'");
+        }
+
+        @Override
+        public Map<Integer, String> getMethodMap() {
+            return new HashMap<>();
         }
     });
     
