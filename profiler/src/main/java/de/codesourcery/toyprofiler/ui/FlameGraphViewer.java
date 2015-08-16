@@ -22,6 +22,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import javax.imageio.ImageIO;
@@ -37,7 +38,6 @@ import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
@@ -48,10 +48,11 @@ import de.codesourcery.toyprofiler.Profile;
 import de.codesourcery.toyprofiler.Profile.MethodStats;
 import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.IDataProvider;
 import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.IVisitor;
+import de.codesourcery.toyprofiler.util.IGridBagHelper;
 import de.codesourcery.toyprofiler.util.IProfileIOAdapter;
 import de.codesourcery.toyprofiler.util.XMLSerializer;
 
-public class FlameGraphViewer extends JFrame
+public class FlameGraphViewer extends JFrame implements IGridBagHelper
 {
     protected static final DateTimeFormatter DATE_PATTERN = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssZZZ");
     protected static final DecimalFormat INVOCATION_COUNT_FORMAT = new DecimalFormat("###,###,###,###,##0");
@@ -156,7 +157,7 @@ public class FlameGraphViewer extends JFrame
         }
 
         @Override
-        public double getPreviousPercentageValue(MethodStats currentNode) 
+        public double getPreviousPercentageValue(MethodStats currentNode) throws NoSuchElementException,IllegalStateException
         {
             if ( previousProfile == null ) {
                 throw new IllegalStateException("Called without previous profile ?"); 
@@ -326,14 +327,21 @@ public class FlameGraphViewer extends JFrame
 
         // 'File' menu
         final JMenu fileMenu = new JMenu("File");
-        addMenuItem("Quit", () -> System.exit(0) , fileMenu );
-        fileMenu.addSeparator();
+
         addMenuItem("Load profiles...",()->  loadProfiles() , fileMenu );
         addMenuItem("Close current", this::closeCurrent, fileMenu , key( KeyEvent.VK_W, KeyEvent.CTRL_DOWN_MASK ) );
         
-        addMenuItem("Reload", history::reloadCurrent , fileMenu , key( KeyEvent.VK_F5 ) );
+        addMenuItem("Reload", () -> 
+        { 
+            try {
+                history.reloadCurrent();
+            } catch (IOException e) {
+                error("Failed to reload file",e);
+            }
+        }, fileMenu , key( KeyEvent.VK_F5 ) );
         
         addMenuItem("Preferences...", this::editPreferences, fileMenu );
+        addMenuItem("Quit", () -> System.exit(0) , fileMenu );
         
         // register top-level menus
         result.add( fileMenu );
@@ -461,8 +469,13 @@ public class FlameGraphViewer extends JFrame
         }
     }
     
-    private void exportImage() {
-
+    private void exportImage() 
+    {
+        if ( history.size() == 0 ) {
+            error("No data to render");
+            return;
+        }
+        
         final JDialog dialog = new JDialog();
         dialog.setDefaultCloseOperation( JDialog.DISPOSE_ON_CLOSE );
 
@@ -570,23 +583,6 @@ public class FlameGraphViewer extends JFrame
     protected interface ThrowingRunnable 
     {
         public void run() throws Exception;
-    }
-    
-    protected static void error(String message) 
-    {
-        error(message,null);
-    }
-    
-    protected static void error(String message,Throwable t) 
-    {
-        if ( t != null ) {
-            t.printStackTrace();
-        }
-        JOptionPane.showMessageDialog(null, message , "Error", JOptionPane.ERROR_MESSAGE );
-    }
-
-    protected static void info(String message) {
-        JOptionPane.showMessageDialog(null, message , "Information", JOptionPane.INFORMATION_MESSAGE );
     }
     
     protected static String millisToString(double millis) 

@@ -361,7 +361,7 @@ public class Profile
         return buffer.toString();
     }
 
-    public MethodStats lookupByPath(int[] methodIds) 
+    public MethodStats lookupByPath(int[] methodIds) throws IllegalStateException,NoSuchElementException
     {
         if ( topLevelMethod == null ) {
             throw new IllegalStateException("lookupByPath() called on profile without top-level method");

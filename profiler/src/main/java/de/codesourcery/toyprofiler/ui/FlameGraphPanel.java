@@ -99,6 +99,10 @@ public final class FlameGraphPanel extends JPanel implements IViewChangeListener
         @Override
         public void mouseClicked(java.awt.event.MouseEvent e)
         {
+            if ( graph == null ) {
+                return;
+            }
+            
             boolean zoomChanged = false;
             if ( e.getButton() == MouseEvent.BUTTON3 && zoom != null ) { // zoom out
                 final RectangularRegion<MethodStats> first = graph.getFirst();

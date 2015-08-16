@@ -2,6 +2,7 @@ package de.codesourcery.toyprofiler.ui;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.time.ZonedDateTime;
@@ -68,10 +69,13 @@ public final class ViewingHistory
         return Optional.empty();
     }
 
-    public void reloadCurrent() 
+    public void reloadCurrent() throws FileNotFoundException, IOException 
     {
-        current().filter( ProfileData::hasFile ).flatMap( ProfileData::getSourceFile ).ifPresent( file -> 
+        final Optional<File> currentFile = current().filter( ProfileData::hasFile ).flatMap( ProfileData::getSourceFile );
+        if ( currentFile.isPresent() ) 
         {
+            final File file = currentFile.get();
+
             try ( FileInputStream in =new FileInputStream( file ) )
             {
                 final ProfileContainer profiles = new XMLSerializer().load( in );
@@ -79,11 +83,7 @@ public final class ViewingHistory
                 history.set( ptr , new ProfileData(file,profiles, newSelection ) );
                 notifyListeners( current() );
             } 
-            catch(Exception e) 
-            {
-                FlameGraphViewer.error("Failed to load data from "+file.getAbsolutePath()+" ("+e.getMessage()+")");
-            }    
-        } );
+        }
     }
 
     public void setCurrentProfile(Profile profile,boolean triggeredFromComboBox) 

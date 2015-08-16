@@ -100,9 +100,8 @@ public abstract class ColorSchemeEditorPanel extends JPanel implements IGridBagH
     {
         toEdit.setName( schemeName.getText() );
         toEdit.setup();
-        original.populateFrom( toEdit );
-        onSave( this.original );
+        onSave( toEdit , original );
     }
     
-    protected abstract void onSave(ColorScheme scheme);
+    protected abstract void onSave(ColorScheme edited,ColorScheme original);
 }

@@ -5,7 +5,6 @@ import static java.lang.Integer.parseInt;
 import java.awt.Color;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
@@ -16,8 +15,8 @@ public class ColorScheme
 {
     private static final String KEY_COLOR_SCHEME = "colorscheme.";
 
-    public static final ColorScheme DEFAULT = new ColorScheme("default",Color.RED.darker() , Color.ORANGE.brighter() , 4 , Color.GREEN , Color.RED );
-    public static final ColorScheme DEFAULT_COMPARE = new ColorScheme("default (compare)",new Color( 0 , 0 , 120 ), new Color( 0, 0 , 230 ) , 4 , Color.GREEN , Color.RED );
+    private static final ColorScheme DEFAULT = new ColorScheme("default",Color.RED.darker() , Color.ORANGE.brighter() , 4 , Color.GREEN , Color.RED );
+    private static final ColorScheme DEFAULT_COMPARE = new ColorScheme("default (compare)",new Color( 0 , 0 , 120 ), new Color( 0, 0 , 230 ) , 4 , Color.GREEN , Color.RED );
     
     private String name;
     
@@ -34,6 +33,14 @@ public class ColorScheme
     {
         populateFrom( other );
     }
+    
+    public static ColorScheme getDefault() {
+        return DEFAULT.createCopy();
+    }
+    
+    public static ColorScheme getDefaultCompare() {
+        return DEFAULT_COMPARE.createCopy();
+    }    
     
     public void setName(String name) 
     {

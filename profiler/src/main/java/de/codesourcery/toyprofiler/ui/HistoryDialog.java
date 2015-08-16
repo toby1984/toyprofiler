@@ -3,8 +3,6 @@ package de.codesourcery.toyprofiler.ui;
 import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.Graphics;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Arrays;
@@ -25,8 +23,9 @@ import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.FlameGraph;
 import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.IDataProvider;
 import de.codesourcery.toyprofiler.ui.FlameGraphViewer.MethodDataProvider;
 import de.codesourcery.toyprofiler.ui.ViewingHistory.IViewChangeListener;
+import de.codesourcery.toyprofiler.util.IGridBagHelper;
 
-public final class HistoryDialog extends JDialog implements IViewChangeListener
+public final class HistoryDialog extends JDialog implements IViewChangeListener , IGridBagHelper
 {
     private final HistoryTableModel tableModel = new HistoryTableModel();
     private final JTable table = new JTable( tableModel);
@@ -103,27 +102,29 @@ public final class HistoryDialog extends JDialog implements IViewChangeListener
     {
         final ProfileData[] rows = getSelectedRows();
         if ( rows.length != 2 ) {
-            FlameGraphViewer.error("You need to select exactly 2 rows");
+            error("You need to select exactly 2 rows");
             return;
         }
         
         final ProfileData previous = rows[0];
         final ProfileData current  = rows[1];
-        compareProfiles(previous,current,preferences);
+        try {
+            compareProfiles(previous,current,preferences);
+        } catch (Exception e) {
+            error( e.getMessage() );
+        }
     }
     
-    public static void compareProfiles(ProfileData previous,ProfileData current,Preferences preferences) 
+    public static void compareProfiles(ProfileData previous,ProfileData current,Preferences preferences) throws Exception
     {
         if ( ! current.getSelectedThreadName().isPresent() ) {
-            FlameGraphViewer.error("Profile "+current+" has no thread selected");
-            return;
+            throw new Exception("Profile "+current+" has no thread selected");
         }                
         
         final Profile currentProfile = current.getSelectedProfile().get();
         final Optional<Profile> previousProfile = previous.getProfileByThreadName( currentProfile.getThreadName() );
         if ( ! previousProfile.isPresent() ) {
-            FlameGraphViewer.error("Profile "+previous+" has no thread named '"+currentProfile.getThreadName() );
-            return;
+            throw new Exception("Profile "+previous+" has no thread named '"+currentProfile.getThreadName() );
         } 
         final MethodStatsHelper previousResolver = new MethodStatsHelper( previous );
         final MethodStatsHelper currentResolver = new MethodStatsHelper( current );

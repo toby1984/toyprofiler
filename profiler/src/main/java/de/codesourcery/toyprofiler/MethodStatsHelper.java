@@ -36,21 +36,21 @@ public class MethodStatsHelper
         this.resolver = resolver;
     }
     
-    public String[] resolveMethodIds(int[] methodIds) 
+    public String[] resolveMethodIds(int[] methodIds) throws NoSuchElementException
     {
         final String[] result = new String[ methodIds.length ];
         for ( int i = 0,len=result.length ; i < len ; i++ ) 
         {
             final String rawMethodName = resolver.getRawMethodName( methodIds[i] );
             if ( rawMethodName == null ) {
-                throw new IllegalArgumentException("Failed to resolve method name for methodId "+methodIds[i]);
+                throw new NoSuchElementException("Failed to resolve method name for methodId "+methodIds[i]);
             }
             result[i] = rawMethodName;
         }
         return result;
     }
     
-    public int[] resolveMethodNames(String[] rawMethodNames) 
+    public int[] resolveMethodNames(String[] rawMethodNames) throws NoSuchElementException
     {
         final int[] result = new int[ rawMethodNames.length ];
         for ( int i = 0,len=result.length ; i < len ; i++ ) 

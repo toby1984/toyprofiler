@@ -7,8 +7,10 @@ import java.awt.GridBagLayout;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
-import javax.swing.DefaultComboBoxModel;
+import javax.swing.AbstractListModel;
+import javax.swing.ComboBoxModel;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
@@ -25,8 +27,49 @@ public abstract class PreferencesPanel extends JPanel implements IGridBagHelper 
     
     private final List<ColorScheme> colorSchemes;
     
+    private ColorScheme selectedDefaultScheme;
+    private ColorScheme selectedDefaultCompareScheme;
+    
+    private final MyComboModel defaultSchemeModel = new MyComboModel( () -> selectedDefaultScheme , value -> selectedDefaultScheme = value );
+    private final MyComboModel compareSchemeModel = new MyComboModel( () -> selectedDefaultCompareScheme , value -> selectedDefaultCompareScheme = value );
+    
     private final JComboBox<ColorScheme> defaultScheme;
     private final JComboBox<ColorScheme> compareScheme;
+    
+    protected final class MyComboModel extends AbstractListModel<ColorScheme> implements ComboBoxModel<ColorScheme>{
+        
+        private final Supplier<ColorScheme> getter;
+        private final Consumer<ColorScheme> setter;
+        
+        public MyComboModel(Supplier<ColorScheme> getter,Consumer<ColorScheme> setter) {
+            this.setter = setter;
+            this.getter = getter;
+        }
+        public void modelChanged() 
+        {
+            fireContentsChanged( this , 0 , colorSchemes.size() );
+        }
+
+        @Override
+        public int getSize() {
+            return colorSchemes.size();
+        }
+
+        @Override
+        public ColorScheme getElementAt(int index) {
+            return colorSchemes.get(index);
+        }
+
+        @Override
+        public void setSelectedItem(Object anItem) {
+            setter.accept( (ColorScheme) anItem ); 
+        }
+
+        @Override
+        public ColorScheme getSelectedItem() {
+            return getter.get();
+        }
+    }
     
     public PreferencesPanel(Preferences preferences) 
     {
@@ -39,17 +82,6 @@ public abstract class PreferencesPanel extends JPanel implements IGridBagHelper 
         
         // get color schemes
         colorSchemes = preferences.getColorSchemes();
-        
-        // get default schemes (add if they're missing)
-        final ColorScheme defaultSelected = preferences.getDefaultColorScheme();
-        if ( ! colorSchemes.contains( defaultSelected ) ) {
-            colorSchemes.add( defaultSelected );
-        }
-        
-        final ColorScheme defaultCmpSelected = preferences.getDefaultCompareColorScheme();
-        if ( ! colorSchemes.contains( defaultCmpSelected ) ) {
-            colorSchemes.add( defaultCmpSelected );
-        }
         
         // sort ascending by scheme name
         colorSchemes.sort( Comparator.comparing( ColorScheme::getName ));
@@ -68,27 +100,29 @@ public abstract class PreferencesPanel extends JPanel implements IGridBagHelper 
         };
         
         // combo box to select default color scheme
-        defaultScheme = new JComboBox<>( new DefaultComboBoxModel<>( colorSchemes.toArray( new ColorScheme[ colorSchemes.size() ] ) ) );
-        defaultScheme.setSelectedItem( defaultSelected );
+        defaultScheme = new JComboBox<ColorScheme>( defaultSchemeModel );
+        defaultScheme.setSelectedItem( preferences.getDefaultColorScheme()  );
         defaultScheme.setRenderer( listRenderer );
         
         label( "Default color scheme" , cnstrs( 0 , 0 ).anchorLeft() );
         add( defaultScheme , cnstrs( 1 , 0 ).build() );
         button( "Edit" , () -> editColorScheme( (ColorScheme) defaultScheme.getSelectedItem() , scheme -> 
         {
+            defaultSchemeModel.setSelectedItem( scheme );
             preferences.setDefaultColorScheme(scheme);
             updateComboBoxModels();
         }) ,  cnstrs(2,0 ) );
         
         // combo box to select default comparison color scheme
-        compareScheme = new JComboBox<>( new DefaultComboBoxModel<>( colorSchemes.toArray( new ColorScheme[ colorSchemes.size() ] ) ) );
-        compareScheme.setSelectedItem( defaultCmpSelected );
+        compareScheme = new JComboBox<ColorScheme>( compareSchemeModel );
+        compareScheme.setSelectedItem( preferences.getDefaultCompareColorScheme() );
         compareScheme.setRenderer( listRenderer );
         
         label( "Comparison color scheme" , cnstrs( 0 , 1 ).anchorLeft() );
         add( compareScheme , cnstrs( 1 , 1 ).build() );
         button( "Edit" , () -> editColorScheme( (ColorScheme) compareScheme.getSelectedItem() , scheme -> 
         {
+            compareSchemeModel.setSelectedItem( scheme );
             preferences.setDefaultCompareColorScheme(scheme);
             updateComboBoxModels();
         }) ,  cnstrs(2,1 ) );
@@ -103,20 +137,9 @@ public abstract class PreferencesPanel extends JPanel implements IGridBagHelper 
         // sort ascending by scheme name
         colorSchemes.sort( Comparator.comparing( ColorScheme::getName ));
         
-        final DefaultComboBoxModel<ColorScheme> model1 = new DefaultComboBoxModel<>( colorSchemes.toArray( new ColorScheme[ colorSchemes.size() ] ) );
-        final DefaultComboBoxModel<ColorScheme> model2 = new DefaultComboBoxModel<>( colorSchemes.toArray( new ColorScheme[ colorSchemes.size() ] ) );
-        
-        defaultScheme.setModel( model1 );
-        compareScheme.setModel( model2 );
-        
-        // get default schemes (add if they're missing)
-        final ColorScheme defaultSelected = toEdit.getDefaultColorScheme();
-        defaultScheme.setSelectedItem( defaultSelected );
-        
-        final ColorScheme defaultCmpSelected = toEdit.getDefaultCompareColorScheme();
-        compareScheme.setSelectedItem( defaultCmpSelected );
+        defaultSchemeModel.modelChanged();
+        compareSchemeModel.modelChanged();
     }
-    
     
     private ConstraintBuilder cnstrs(int x,int y) {
         return new ConstraintBuilder(x,y);
@@ -129,9 +152,20 @@ public abstract class PreferencesPanel extends JPanel implements IGridBagHelper 
         dialog.add( new ColorSchemeEditorPanel( scheme ) 
         {
             @Override
-            protected void onSave(ColorScheme scheme) 
+            protected void onSave(ColorScheme edited,ColorScheme original) 
             {
+                if ( colorSchemes.stream().filter( s -> s != original ).anyMatch( s -> s.getName().equals( edited.getName() ) ) ) 
+                {
+                    error("Color scheme name '"+edited.getName()+"' is already in use");
+                    return;
+                }
+                original.populateFrom( edited );
+                
                 toEdit.setColorSchemes( colorSchemes );
+                
+                toEdit.setDefaultColorScheme( defaultSchemeModel.getSelectedItem() );
+                toEdit.setDefaultCompareColorScheme( compareSchemeModel.getSelectedItem() );
+
                 dialog.dispose();
                 saveAction.accept( scheme );
             }

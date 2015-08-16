@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 public class FlameGraphRenderer<T>
 {
@@ -41,7 +42,7 @@ public class FlameGraphRenderer<T>
 
         public boolean isShowDifferences();
 
-        public double getPreviousPercentageValue(T node);
+        public double getPreviousPercentageValue(T node) throws NoSuchElementException,IllegalStateException;
 
         public List<T> getChildren(T node);
 
@@ -280,11 +281,19 @@ public class FlameGraphRenderer<T>
 
         if ( dataProvider.isShowDifferences() ) 
         {
-            final double delta = dataProvider.getPercentageValue( node ) - dataProvider.getPreviousPercentageValue( node );
-            final Color color = delta > 0 ? colorScheme.getBadDifferenceColor() : colorScheme.getGoodDifferenceColor();
-            final int w = (int) (r.width * Math.abs(delta));
-            graphics.setColor( color );
-            graphics.fillRect( r.x+r.width-w , r.y , w , r.height );
+            try 
+            {
+                final double delta = dataProvider.getPercentageValue( node ) - dataProvider.getPreviousPercentageValue( node );
+                final Color color = delta > 0 ? colorScheme.getBadDifferenceColor() : colorScheme.getGoodDifferenceColor();
+                final int w = (int) (r.width * Math.abs(delta));
+                graphics.setColor( color );
+                graphics.fillRect( r.x+r.width-w , r.y , w , r.height );
+            } 
+            catch( NoSuchElementException |  IllegalStateException e) 
+            {
+                graphics.setColor( Color.GRAY );
+                graphics.fillRect( r.x , r.y , r.width , r.height );
+            }
         }
 
         graphics.setColor( Color.WHITE );

@@ -46,6 +46,8 @@ public class Preferences
     
     public Preferences() 
     {
+        getDefaultColorScheme();
+        getDefaultCompareColorScheme();
     }
     
     public void addListener(IPrefChangeListener l) {
@@ -99,6 +101,14 @@ public class Preferences
         if ( file != null && file.exists() && file.isFile() && file.canRead() ) {
             System.out.println("Loading preferences from "+file.getAbsolutePath()+"...");
             load( new FileInputStream( file ) );
+        } 
+        else 
+        {
+            InputStream in = getClass().getResourceAsStream("/preferences.properties");
+            if ( in != null ) {
+                System.out.println("Loading default preferences from classpath");
+                load( in ); 
+            }
         }
     }
     
@@ -140,7 +150,12 @@ public class Preferences
         {
             final Properties props = new Properties();
             props.load( in );
+            
             setProperties(props);
+            
+            getDefaultColorScheme();
+            getDefaultCompareColorScheme();
+            
             success = true;
         } finally {
             try {
@@ -262,32 +277,48 @@ public class Preferences
  
     private String getDefaultColorSchemeName() 
     {
-        return getOrElse( KEY_DEFAULT_COLORSCHENME_NAME , ColorScheme.DEFAULT.getName() );
+        return getOrUpdate( KEY_DEFAULT_COLORSCHENME_NAME , ColorScheme.getDefault().getName() );
     }
     
     private String getDefaultCompareColorSchemeName() 
     {
-        return getOrElse( KEY_DEFAULT_COMPARE_COLORSCHENME_NAME , ColorScheme.DEFAULT_COMPARE.getName() );
+        return getOrUpdate( KEY_DEFAULT_COMPARE_COLORSCHENME_NAME , ColorScheme.getDefaultCompare().getName() );
     }
     
-    private String getOrElse(String key,String defaultValue) {
-        String value = properties.get( key );
-        return value == null ? defaultValue : value;
+    private String getOrUpdate(String key,String defaultValue) 
+    {
+        final String value = properties.get( key );
+        if ( value == null ) {
+            System.out.println("Adding missing config key: '"+key+"' = "+defaultValue);
+            properties.put( key , defaultValue );
+            return defaultValue;
+        }
+        return value;
     }
     
     public Optional<ColorScheme> getColorScheme(String name) {
         
-        Optional<ColorScheme> result = getColorSchemes().stream().filter( s -> s.getName().equals(name ) ).findFirst();
+        final List<ColorScheme> schemes = getColorSchemes();
+        Optional<ColorScheme> result = schemes.stream().filter( s -> s.getName().equals(name ) ).findFirst();
         if ( ! result.isPresent() ) 
         {
+            final ColorScheme copy;
             if ( name.equals( getDefaultColorSchemeName() ) ) 
             {
-                result = Optional.of( ColorScheme.DEFAULT );
+                copy = ColorScheme.getDefault();
                 System.out.println("Using default color scheme");
-            } else if ( name.equals( getDefaultCompareColorSchemeName() ) ) {
-                result = Optional.of( ColorScheme.DEFAULT_COMPARE );
+            } 
+            else if ( name.equals( getDefaultCompareColorSchemeName() ) ) 
+            {
+                copy = ColorScheme.getDefaultCompare();
                 System.out.println("Using default compare color scheme");
+            } else {
+                return result;
             }
+            copy.setName( name );
+            schemes.add( copy  );
+            setColorSchemes(schemes);            
+            return Optional.of(copy);
         }
         return result;
     }

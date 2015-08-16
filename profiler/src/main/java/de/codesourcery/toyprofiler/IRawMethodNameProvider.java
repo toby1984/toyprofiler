@@ -1,6 +1,7 @@
 package de.codesourcery.toyprofiler;
 
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 public interface IRawMethodNameProvider
 {
@@ -11,7 +12,7 @@ public interface IRawMethodNameProvider
      */    
     public String getRawMethodName(int methodId);
     
-    public int getMethodId(String rawMethodName);
+    public int getMethodId(String rawMethodName) throws NoSuchElementException;
     
     public Map<Integer,String> getMethodMap();
 }

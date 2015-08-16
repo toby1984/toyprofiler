@@ -8,6 +8,7 @@ import java.util.function.Supplier;
 import javax.swing.JButton;
 import javax.swing.JColorChooser;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JTextField;
 
 public interface IGridBagHelper 
@@ -63,4 +64,21 @@ public interface IGridBagHelper
     }
     
     public void add(Component component,Object constraints);
+    
+    public default void error(String message) 
+    {
+        error(message,null);
+    }
+    
+    public default void error(String message,Throwable t) 
+    {
+        if ( t != null ) {
+            t.printStackTrace();
+        }
+        JOptionPane.showMessageDialog(null, message , "Error", JOptionPane.ERROR_MESSAGE );
+    }
+
+    public default void info(String message) {
+        JOptionPane.showMessageDialog(null, message , "Information", JOptionPane.INFORMATION_MESSAGE );
+    }
 }
