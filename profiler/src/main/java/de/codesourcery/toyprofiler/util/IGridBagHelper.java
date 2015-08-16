@@ -27,6 +27,10 @@ public interface IGridBagHelper
         return button;
     }    
     
+    public static ConstraintBuilder cnstrs(int x,int y) {
+        return new ConstraintBuilder(x,y);
+    }
+    
     public default JTextField textField(Supplier<String> toEdit , Consumer<String> saveAction,ConstraintBuilder builder) 
     {
         final JTextField tf = new JTextField();

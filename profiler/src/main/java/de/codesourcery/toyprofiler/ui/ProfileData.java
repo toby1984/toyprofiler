@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -100,8 +101,12 @@ public final class ProfileData implements IRawMethodNameProvider
     }
     
     @Override
-    public String toString() {
-        return super.toString();
+    public String toString() 
+    {
+        String file = hasFile() ? getSourceFile().get().getAbsolutePath() : "<no file>";
+        final DateTimeFormatter format = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssZZZ");
+        final String ts = getTimestamp().map( tz -> format.format( tz ) ).orElse("<no timestamp");
+        return file + " @ "+ts;
     }
     
     public Optional<Profile> getSelectedProfile() {

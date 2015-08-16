@@ -5,6 +5,8 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
@@ -19,11 +21,13 @@ import javax.swing.JPanel;
 import de.codesourcery.toyprofiler.MethodStatsHelper;
 import de.codesourcery.toyprofiler.Profile.MethodStats;
 import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.FlameGraph;
+import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.IDataProvider;
 import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.RectangularRegion;
 import de.codesourcery.toyprofiler.ui.FlameGraphViewer.MethodDataProvider;
+import de.codesourcery.toyprofiler.ui.Preferences.IPrefChangeListener;
 import de.codesourcery.toyprofiler.ui.ViewingHistory.IViewChangeListener;
 
-public final class FlameGraphPanel extends JPanel implements IViewChangeListener
+public class FlameGraphPanel extends JPanel implements IViewChangeListener
 {
     public interface IMethodStatSelectionListener 
     {
@@ -38,7 +42,7 @@ public final class FlameGraphPanel extends JPanel implements IViewChangeListener
     private int h = -1;
     
     private MethodStatsHelper resolver;
-    private MethodDataProvider dataProvider;
+    private IDataProvider<MethodStats> dataProvider;
     
     private FlameGraph<MethodStats> graph;
 
@@ -65,35 +69,6 @@ public final class FlameGraphPanel extends JPanel implements IViewChangeListener
                     repaint();
                 }
             }
-        }
-
-        private String getToolTip( MethodStats stats)
-        {
-            final StringBuilder buffer = new StringBuilder("<HTML><BODY>");
-            final Map<String,String> data = new LinkedHashMap<>();
-            data.put("Class", resolver.getRawClassName(stats) );
-            data.put("Method", resolver.getMethodName(stats) );
-            data.put("Signature", resolver.getRawMethodSignature(stats));
-            data.put("Invocations" , FlameGraphViewer.INVOCATION_COUNT_FORMAT.format( stats.getInvocationCount() ) );
-            data.put("Total time" , FlameGraphViewer.millisToString( stats.getTotalTimeMillis() ) +" ("+FlameGraphViewer.PERCENTAGE_FORMAT.format( 100*stats.getPercentageOfParentTime() )+" % of parent)" );
-            data.put("Own time" , FlameGraphViewer.millisToString( stats.getOwnTimeMillis() ) );
-
-            final int col0MaxLen = data.keySet().stream().mapToInt( s -> s.length() ).max().orElse(0);
-            for (final Iterator<String> it = new ArrayList<>( data.keySet() ).iterator(); it.hasNext();)
-            {
-                final String origKey = it.next();
-                String key = origKey;
-                while ( key.length() < col0MaxLen ) {
-                    key += " ";
-                }
-                buffer.append("<B>"+key+":</B> "+data.get(origKey) );
-                if ( it.hasNext() ) {
-                    buffer.append("<BR/>");
-                }
-            }
-
-            buffer.append("</BODY></HTML>");
-            return buffer.toString();
         }
 
         @Override
@@ -142,13 +117,60 @@ public final class FlameGraphPanel extends JPanel implements IViewChangeListener
         }
     };
 
-    private Preferences preferences;
+    private final Preferences preferences;
+    
+    public FlameGraphPanel(FlameGraphRenderer<MethodStats> renderer,IDataProvider<MethodStats> dataProvider,MethodStatsHelper resolver,Preferences preferences) 
+    {
+        this.preferences = preferences;
+        this.renderer = renderer;
+        this.dataProvider = dataProvider;
+        this.resolver = resolver;
+        
+        registerListeners();
+    }    
+    
+    public FlameGraphPanel(Preferences preferences)
+    {
+        this.preferences = preferences;
+        registerListeners();
+    }    
+    
+    private void registerListeners() 
+    {
+        addMouseListener( mouseListener );
+        addMouseMotionListener( mouseListener);
+        
+        addComponentListener( new ComponentAdapter() 
+        {
+            private final IPrefChangeListener l = prefs -> 
+            {
+                renderer.setColorScheme( prefs.getDefaultColorScheme() );
+                forcedRepaint();
+            };
+            
+            @Override
+            public void componentShown(ComponentEvent e) 
+            {
+                preferences.addListener( l);                
+            }
+            
+            @Override
+            public void componentHidden(ComponentEvent e) {
+                preferences.removeListener(l); 
+            }
+        });        
+    }
     
     public void addListener( IMethodStatSelectionListener l ) {
         this.listeners.add(l);
     }
     
     private void selectionChanged(MethodStats newSelection) 
+    {
+        selectionChanged(newSelection,resolver);
+    }
+    
+    protected void selectionChanged(MethodStats newSelection,MethodStatsHelper resolver) 
     {
         listeners.forEach( l -> l.selectionChanged(newSelection,resolver) );
     }
@@ -164,26 +186,18 @@ public final class FlameGraphPanel extends JPanel implements IViewChangeListener
             dataProvider = null;
             resolver = MethodStatsHelper.NOP_INSTANCE;
         }
-        renderer = new FlameGraphRenderer<MethodStats>( dataProvider , preferences.getDefaultColorScheme() );
+        renderer = new FlameGraphRenderer<MethodStats>( dataProvider , getColorScheme() );
         forcedRepaint();
-    }
-
-    public FlameGraphPanel(Preferences preferences)
-    {
-        this.preferences = preferences;
-        preferences.addListener( prefs -> 
-        {
-            renderer.setColorScheme( prefs.getDefaultColorScheme() );
-            forcedRepaint();
-        });
-        
-        addMouseListener( mouseListener );
-        addMouseMotionListener( mouseListener);
     }
 
     private void forcedRepaint() {
         graph = null;
         repaint();
+    }
+    
+    protected ColorScheme getColorScheme() 
+    {
+        return preferences.getDefaultColorScheme();
     }
 
     public BufferedImage renderCustomImage(int w,int h) 
@@ -233,8 +247,48 @@ public final class FlameGraphPanel extends JPanel implements IViewChangeListener
         final RectangularRegion<MethodStats> toHighlight = currentSelection != null ? currentSelection : highlight;
         if ( toHighlight != null )
         {
-            g.setColor( Color.BLUE );
+            g.setColor( getColorScheme().getSelectionColor() );
             ((Graphics2D) g).draw( toHighlight );
         }
     }
+    
+    protected String getToolTip( MethodStats stats )
+    {
+        final StringBuilder buffer = new StringBuilder("<HTML><BODY>");
+        final Map<String, String> data = createToolTipMap(stats);
+
+        final int col0MaxLen = data.keySet().stream().mapToInt( s -> s.length() ).max().orElse(0);
+        for (final Iterator<String> it = new ArrayList<>( data.keySet() ).iterator(); it.hasNext();)
+        {
+            final String origKey = it.next();
+            String key = origKey;
+            while ( key.length() < col0MaxLen ) {
+                key += " ";
+            }
+            buffer.append("<B>"+key+":</B> "+data.get(origKey) );
+            if ( it.hasNext() ) {
+                buffer.append("<BR/>");
+            }
+        }
+
+        buffer.append("</BODY></HTML>");
+        return buffer.toString();
+    }
+    
+    protected Map<String, String> createToolTipMap(MethodStats stats) 
+    {
+        return createToolTipMap(stats,resolver);
+    }
+
+    protected Map<String, String> createToolTipMap(MethodStats stats,MethodStatsHelper resolver) 
+    {
+        final Map<String,String> data = new LinkedHashMap<>();
+        data.put("Class", resolver.getRawClassName(stats) );
+        data.put("Method", resolver.getMethodName(stats) );
+        data.put("Signature", resolver.getRawMethodSignature(stats));
+        data.put("Invocations" , FlameGraphViewer.INVOCATION_COUNT_FORMAT.format( stats.getInvocationCount() ) );
+        data.put("Total time" , FlameGraphViewer.millisToString( stats.getTotalTimeMillis() ) +" ("+FlameGraphViewer.PERCENTAGE_FORMAT.format( 100*stats.getPercentageOfParentTime() )+" % of parent)" );
+        data.put("Own time" , FlameGraphViewer.millisToString( stats.getOwnTimeMillis() ) );
+        return data;
+    }    
 }

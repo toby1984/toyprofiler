@@ -2,11 +2,13 @@ package de.codesourcery.toyprofiler.ui;
 
 import java.awt.Dimension;
 import java.awt.Frame;
-import java.awt.Graphics;
+import java.awt.GridBagLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -19,7 +21,6 @@ import javax.swing.JTable;
 import de.codesourcery.toyprofiler.MethodStatsHelper;
 import de.codesourcery.toyprofiler.Profile;
 import de.codesourcery.toyprofiler.Profile.MethodStats;
-import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.FlameGraph;
 import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.IDataProvider;
 import de.codesourcery.toyprofiler.ui.FlameGraphViewer.MethodDataProvider;
 import de.codesourcery.toyprofiler.ui.ViewingHistory.IViewChangeListener;
@@ -53,15 +54,33 @@ public final class HistoryDialog extends JDialog implements IViewChangeListener 
     
     public HistoryDialog(Preferences preferences) 
     {
+        super((Frame) null, "History", false );
+        
         this.preferences = preferences;
         setDefaultCloseOperation( JDialog.HIDE_ON_CLOSE );
 
         final JPanel panel = new JPanel();
+        panel.setLayout( new GridBagLayout() );
+        
         final JButton closeDialog = new JButton("Hide window");
         closeDialog.addActionListener( ev -> 
         {
             setVisible(false);
         });
+        
+        final JButton moveUp = new JButton("Up");
+        moveUp.addActionListener( ev -> 
+        {
+            final ProfileData[] selection = getSelectedRows();
+            Arrays.stream( selection ).forEach( s ->  tableModel.getHistory().moveUp( selection[0] ) );
+        });
+        
+        final JButton moveDown = new JButton("Down");
+        moveDown.addActionListener( ev -> 
+        {
+            final ProfileData[] selection = getSelectedRows();
+            Arrays.stream( selection ).forEach( s ->  tableModel.getHistory().moveDown( selection[0] ) );
+        });        
         
         final JButton unloadProfile = new JButton("Unload");
         unloadProfile.addActionListener( ev -> 
@@ -75,10 +94,21 @@ public final class HistoryDialog extends JDialog implements IViewChangeListener 
         compare.addActionListener( ev -> compareProfiles() );
         
         table.setPreferredSize( new Dimension(400,400 ) );
-        panel.add( new JScrollPane(table ) );
-        panel.add( closeDialog );
-        panel.add( compare );
-        panel.add( unloadProfile );
+        panel.add( new JScrollPane(table ) , IGridBagHelper.cnstrs(0,0).weightX(1).weightY(1).build() );
+        
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout( new GridBagLayout() );
+        
+        buttonPanel.add( moveUp   , IGridBagHelper.cnstrs(0,0).weightX(1.0).noMargin().build() );
+        buttonPanel.add( moveDown , IGridBagHelper.cnstrs(0,1).weightX(1.0).noMargin().marginBottom(20).build() );
+
+        buttonPanel.add( compare  , IGridBagHelper.cnstrs(0,2).weightX(1.0).noMargin().marginBottom(5).marginTop(5).build() );
+        buttonPanel.add( closeDialog   , IGridBagHelper.cnstrs(0,3).weightX(1.0).noMargin().build() );
+        buttonPanel.add( unloadProfile , IGridBagHelper.cnstrs(0,4).weightX(1.0).noMargin().build() );
+        
+        
+        panel.add( buttonPanel , IGridBagHelper.cnstrs(1,0).build() );
+        
         add( panel );
         
         table.addMouseListener( new MouseAdapter() {
@@ -132,17 +162,45 @@ public final class HistoryDialog extends JDialog implements IViewChangeListener 
         
         final FlameGraphRenderer<MethodStats> cmpRenderer = new FlameGraphRenderer<MethodStats>( dataProvider , preferences.getDefaultCompareColorScheme() );
         
-        final JPanel panel = new JPanel() 
+        final SelectionInfoPanel infoPanel = new SelectionInfoPanel();
+        
+        final FlameGraphPanel graphPanel = new FlameGraphPanel(cmpRenderer,dataProvider,currentResolver,preferences) 
         {
-            protected void paintComponent(Graphics g) {
-                final FlameGraph<MethodStats> graph = cmpRenderer.render( getWidth() , getHeight() );
-                g.drawImage( graph.getImage() , 0 , 0 , null );
+            protected Map<String, String> createToolTipMap(MethodStats stats) 
+            {
+                final String key = "Time difference to other profile";
+                
+                final Map<String, String> map = createToolTipMap(stats,currentResolver);
+                try {
+                    double currentValue = dataProvider.getPercentageValue( stats );
+                    double previousValue = dataProvider.getPreviousPercentageValue( stats );
+                    double delta = 100*(currentValue - previousValue);
+                    map.put(key, FlameGraphViewer.PERCENTAGE_FORMAT.format( delta )+" %" );
+                } catch(NoSuchElementException | IllegalStateException e) {
+                    map.put(key,"<comparison failed, different call flows>");
+                }
+                return map;
+            }       
+            
+            @Override
+            protected ColorScheme getColorScheme() 
+            {
+                return preferences.getDefaultCompareColorScheme();
             }
         };
-        final JDialog tmp = new JDialog((Frame) null,"Comparison",true);
+        graphPanel.setPreferredSize( new Dimension(400,400 ) );
+        
+        graphPanel.addListener(infoPanel);
+        
+        final JPanel container = new JPanel();
+        container.setLayout( new GridBagLayout() );
+        container.add( infoPanel , IGridBagHelper.cnstrs(0,0).weightX(1.0).build() );
+        container.add( graphPanel , IGridBagHelper.cnstrs(0,1).weightX(1.0).weightY(1.0).resizeBoth().build() );
+        
+        final JDialog tmp = new JDialog((Frame) null,"current: "+current+" / previous: "+previous,true);
         tmp.setDefaultCloseOperation( JDialog.DISPOSE_ON_CLOSE );
         
-        tmp.add( panel );
+        tmp.add( container );
         
         tmp.setPreferredSize( new Dimension(400, 400 ) );
         tmp.pack();

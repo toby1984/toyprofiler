@@ -38,9 +38,13 @@ public abstract class ColorSchemeEditorPanel extends JPanel implements IGridBagH
         // start color
         label( "End color" , cnstrs(0,2) );
         colorChooser( toEdit::getEnd , toEdit::setEnd , cnstrs(1,2) );
+        
+        // selection color
+        label( "Selection color" , cnstrs(0,3) );
+        colorChooser( toEdit::getSelectionColor, toEdit::setSelectionColor, cnstrs(1,3) );        
 
         // color count
-        label("Color count" , cnstrs(0,3) );
+        label("Color count" , cnstrs(0,4) );
         final JSlider slider = new JSlider( JSlider.HORIZONTAL ,  2 , 16 , toEdit.getColorCount() );
         slider.setPaintTicks(true);
         slider.setMajorTickSpacing(2);
@@ -75,19 +79,19 @@ public abstract class ColorSchemeEditorPanel extends JPanel implements IGridBagH
         compound.add( slider , cnstrs(0,0).weightX(1).build() );
         compound.add( colorCount , cnstrs(0,1).build()  );
         
-        add( compound ,cnstrs( 1 ,3 ) );
+        add( compound ,cnstrs( 1 ,4 ) );
         
         // good difference
-        label( "'Good difference' color" , cnstrs(0,4) );
-        colorChooser( toEdit::getGoodDifferenceColor , toEdit::setGoodDifferenceColor , cnstrs(1,4) );
+        label( "'Good difference' color" , cnstrs(0,5) );
+        colorChooser( toEdit::getGoodDifferenceColor , toEdit::setGoodDifferenceColor , cnstrs(1,5) );
         
         // bad difference
-        label( "'Bad difference' color" , cnstrs(0,5) );
-        colorChooser( toEdit::getBadDifferenceColor , toEdit::setBadDifferenceColor , cnstrs(1,5) );
+        label( "'Bad difference' color" , cnstrs(0,6) );
+        colorChooser( toEdit::getBadDifferenceColor , toEdit::setBadDifferenceColor , cnstrs(1,6) );
         
         
-        button("Cancel" , this::cancel , cnstrs(0,6) );
-        button("Save" , this::save , cnstrs(1,6) );
+        button("Cancel" , this::cancel , cnstrs(0,7) );
+        button("Save" , this::save , cnstrs(1,7) );
     }
     
     private ConstraintBuilder cnstrs(int x,int y) {

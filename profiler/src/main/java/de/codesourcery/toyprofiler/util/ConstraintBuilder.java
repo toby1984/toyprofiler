@@ -24,11 +24,52 @@ public class ConstraintBuilder {
         this.gridy = y;
     }
     
+    public ConstraintBuilder anchorRight() {
+        this.anchor = GridBagConstraints.EAST;
+        return this;
+    }
+    
+    public ConstraintBuilder anchorLeft() {
+        this.anchor = GridBagConstraints.WEST;
+        return this;
+    }
+    
+    public ConstraintBuilder noMargin() {
+        this.insets.set(0, 0, 0, 0);
+        return this;
+    }
+    
+    public ConstraintBuilder marginBottom(int pixels) {
+        this.insets.bottom = pixels;
+        return this;
+    }
+    
+    public ConstraintBuilder marginTop(int pixels) {
+        this.insets.top = pixels;
+        return this;
+    }
+    
+    public ConstraintBuilder anchorTop() {
+        this.anchor = GridBagConstraints.NORTH;
+        return this;
+    }  
+    
+    public ConstraintBuilder resizeBoth() 
+    {
+        this.fill = GridBagConstraints.BOTH;
+        return this;
+    }   
+    
+    public ConstraintBuilder anchorBottom() {
+        this.anchor = GridBagConstraints.SOUTH;
+        return this;
+    }      
+    
     public ConstraintBuilder weightX(double weight) 
     {
         if ( weight != 0 ) 
         {
-            if ( this.fill != GridBagConstraints.BOTH) 
+            if ( this.fill != GridBagConstraints.HORIZONTAL && this.fill != GridBagConstraints.BOTH) 
             {
                 if ( this.fill == GridBagConstraints.VERTICAL ) 
                 {
@@ -42,31 +83,11 @@ public class ConstraintBuilder {
         return this;
     }
     
-    public ConstraintBuilder anchorRight() {
-        this.anchor = GridBagConstraints.EAST;
-        return this;
-    }
-    
-    public ConstraintBuilder anchorLeft() {
-        this.anchor = GridBagConstraints.WEST;
-        return this;
-    }
-    
-    public ConstraintBuilder anchorTop() {
-        this.anchor = GridBagConstraints.NORTH;
-        return this;
-    }  
-    
-    public ConstraintBuilder anchorBottom() {
-        this.anchor = GridBagConstraints.SOUTH;
-        return this;
-    }      
-    
     public ConstraintBuilder weightY(double weight) 
     {
         if ( weight != 0 ) 
         {
-            if ( this.fill != GridBagConstraints.BOTH) 
+            if ( this.fill != GridBagConstraints.VERTICAL  && this.fill != GridBagConstraints.BOTH) 
             {
                 if ( this.fill == GridBagConstraints.HORIZONTAL ) 
                 {
@@ -76,7 +97,7 @@ public class ConstraintBuilder {
                 }
             }
         }
-        this.weightx = weight;
+        this.weighty = weight;
         return this;
     }    
     

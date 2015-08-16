@@ -245,4 +245,38 @@ public final class ViewingHistory
             profileData.setFile( file );
         }
     }
+
+    public void moveUp(ProfileData profileData) 
+    {
+        final int idx = history.indexOf( profileData );
+        if ( idx > 0 ) {
+            swap( idx , idx-1 );
+        }
+    }
+
+    public void moveDown(ProfileData profileData) {
+        final int idx = history.indexOf( profileData );
+        if ( idx >= 0 && (idx+1) < history.size() ) 
+        {
+            swap( idx , idx+1 );
+        }
+    }
+    
+    private void swap(int idx1,int idx2) 
+    {
+        final Optional<ProfileData> currentSelection = current();
+        ProfileData a = history.get(idx1);
+        ProfileData b = history.get(idx2);
+        history.set(idx1, b );
+        history.set(idx2, a);
+        if ( currentSelection.isPresent() ) 
+        {
+            if ( currentSelection.get() == a ) {
+                ptr = idx2;
+            } else if ( currentSelection.get() == b ) {
+                ptr = idx1;
+            }
+        }
+        notifyListeners( current() );
+    }
 }

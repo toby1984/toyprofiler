@@ -15,8 +15,8 @@ public class ColorScheme
 {
     private static final String KEY_COLOR_SCHEME = "colorscheme.";
 
-    private static final ColorScheme DEFAULT = new ColorScheme("default",Color.RED.darker() , Color.ORANGE.brighter() , 4 , Color.GREEN , Color.RED );
-    private static final ColorScheme DEFAULT_COMPARE = new ColorScheme("default (compare)",new Color( 0 , 0 , 120 ), new Color( 0, 0 , 230 ) , 4 , Color.GREEN , Color.RED );
+    private static final ColorScheme DEFAULT = new ColorScheme("default",Color.RED.darker() , Color.ORANGE.brighter() , 4 , Color.GREEN , Color.RED , Color.BLUE );
+    private static final ColorScheme DEFAULT_COMPARE = new ColorScheme("default (compare)",new Color( 0 , 0 , 120 ), new Color( 0, 0 , 230 ) , 4 , Color.GREEN , Color.RED , Color.YELLOW );
     
     private String name;
     
@@ -25,6 +25,8 @@ public class ColorScheme
     
     private Color start;
     private Color end;
+    
+    private Color selectionColor;
     
     private Color goodDifferenceColor;
     private Color badDifferenceColor;
@@ -61,6 +63,7 @@ public class ColorScheme
         this.end = other.end;
         this.goodDifferenceColor = other.goodDifferenceColor;
         this.badDifferenceColor = other.badDifferenceColor;
+        this.selectionColor = other.selectionColor;
     }
     
     public ColorScheme(String name) 
@@ -81,13 +84,14 @@ public class ColorScheme
         return this.name.hashCode();
     }
     
-    public ColorScheme(String name,Color src,Color dst,int colorCount,Color goodDifferenceColor,Color badDifferenceColor) {
+    public ColorScheme(String name,Color src,Color dst,int colorCount,Color goodDifferenceColor,Color badDifferenceColor,Color selectionColor) {
         setName(name);
         this.start = src;
         this.end = dst;
         this.colorCount = colorCount;
         this.goodDifferenceColor = goodDifferenceColor;
         this.badDifferenceColor = badDifferenceColor;
+        this.selectionColor = selectionColor;
         setup();
     }
     
@@ -169,6 +173,7 @@ public class ColorScheme
             map.put( key+".gooddiff" , toString( scheme.goodDifferenceColor ) );
             map.put( key+".baddiff" , toString( scheme.badDifferenceColor ) );
             map.put( key+".colorcount" , Integer.toString( scheme.colorCount ) );
+            map.put( key+".selection" , toString( scheme.selectionColor ) );
         }
     }
     
@@ -211,6 +216,7 @@ public class ColorScheme
             
             scheme.setGoodDifferenceColor( fromString( func.apply( "gooddiff" ) ) );
             scheme.setBadDifferenceColor( fromString( func.apply( "baddiff" ) ) );
+            scheme.setSelectionColor( fromString( func.apply( "selection" ) ) );
             
             scheme.setColorCount( parseInt( func.apply( "colorcount") ) );
             scheme.setup();
@@ -235,6 +241,7 @@ public class ColorScheme
         final String[] parts = s.split(",");
         return new Color( parseInt( parts[0] ) , parseInt( parts[1] ) ,parseInt( parts[2] ) );
     }
+    
     @Override
     public String toString() {
         return "ColorScheme [name=" + name + ", gradient="
@@ -245,5 +252,13 @@ public class ColorScheme
     }
     public ColorScheme createCopy() {
         return new ColorScheme(this);
+    }
+    
+    public Color getSelectionColor() {
+        return selectionColor;
+    }
+    
+    public void setSelectionColor(Color selectionColor) {
+        this.selectionColor = selectionColor;
     }
 }
