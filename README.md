@@ -1,8 +1,27 @@
 # toyprofiler
 
-This is a little toy profiler that gathers method execution times by bytecode instrumentation and generates an XML file containing the execution statistics when the program terminates. It also comes with a toy JavaFX viewer application to visualize the profiling results.
+This is a JVM profiler that gathers method execution times by bytecode instrumentation and writes the profiling results to an XML file when the program terminates.
 
-![Image](https://raw.githubusercontent.com/toby1984/toyprofiler/master/screenshot.png)
+It comes with a (more-or-less) fully-featured viewer application that renders the profiling data as flame graphs and allows interactive exploration of call flows.
+
+![Image](https://raw.githubusercontent.com/toby1984/toyprofiler/master/screenshot1.png)
+
+It also provides a visual comparison mode that compares profiling results from two different results, highlighting the method invocations that were either longer or shorter than the reference:
+
+![Image](https://raw.githubusercontent.com/toby1984/toyprofiler/master/screenshot2.png)
+
+# Viewer features
+
+* ...did I mention flame graphs ? :)
+* Customizable color schemes
+* Supports loading profiling results from different runs for easy comparison (see History menu item) 
+* Visually compare profiling results from different runs (History -> Compare)
+* Zoom into a specific method by left double-click
+* Zoom out to the parent stackframe by right-click
+* Switch between the results from multiple profiling runs using cursor-left / cursor-right
+* Easy to use , most commands have keyboard shortcuts
+
+# Profiler features
 
 This is a Java-only JVM agent (=no native code) that - depending on which parts of your application you instrument - may introduce a *massive* slowdown.
 
