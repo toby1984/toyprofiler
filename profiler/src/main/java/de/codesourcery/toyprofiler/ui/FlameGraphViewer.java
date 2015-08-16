@@ -38,6 +38,7 @@ import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
@@ -324,7 +325,10 @@ public class FlameGraphViewer extends JFrame implements IGridBagHelper
         final JMenu toolsMenu = new JMenu("Tools");
         addMenuItem("Export image...", this::exportImage , toolsMenu );
 
-
+        // 'About' menu
+        final JMenu aboutMenu = new JMenu("Help");
+        addMenuItem("About.", this::showAboutDialog, aboutMenu );
+        
         // 'File' menu
         final JMenu fileMenu = new JMenu("File");
 
@@ -347,7 +351,13 @@ public class FlameGraphViewer extends JFrame implements IGridBagHelper
         result.add( fileMenu );
         result.add( historyMenu );
         result.add( toolsMenu );   
+        result.add( aboutMenu );   
         return result;
+    }
+    
+    private void showAboutDialog() 
+    {
+        JOptionPane.showMessageDialog( null , "ToyProfiler v0.1\n\n(C) 2015 tobias.gierke@code-sourcery.de" , "About" , JOptionPane.INFORMATION_MESSAGE );
     }
     
     private void editPreferences() {
