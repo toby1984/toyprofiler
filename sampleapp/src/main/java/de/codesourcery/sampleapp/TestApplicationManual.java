@@ -17,11 +17,11 @@ public class TestApplicationManual
 
     public static void main(String[] args) throws InterruptedException, IOException
     {
-    	Profile.registerMethod("run",0);
-    	Profile.registerMethod("method1",1);
-    	Profile.registerMethod("method2",2);
-    	Profile.registerMethod("method3",3);
-    	Profile.registerMethod("method4",4);
+    	Profile.registerMethod("de/codesourcery/sampleapp/TestApplicationManual|run|()",0);
+    	Profile.registerMethod("de/codesourcery/sampleapp/TestApplicationManual|method1|()",1);
+    	Profile.registerMethod("de/codesourcery/sampleapp/TestApplicationManual|method2|()",2);
+    	Profile.registerMethod("de/codesourcery/sampleapp/TestApplicationManual|method3|()",3);
+    	Profile.registerMethod("de/codesourcery/sampleapp/TestApplicationManual|method4|()",4);
 
         final CountDownLatch latch = new CountDownLatch(5);
         for ( int i = 0 ; i < 5 ; i++ )

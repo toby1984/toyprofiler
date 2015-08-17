@@ -3,11 +3,13 @@ package de.codesourcery.sampleapp;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 
-public class TestApplication 
+public class TestApplication
 {
     private final Random rnd = new Random();
-    
+
     private final Object LOCK = new Object();
+
+    protected static final int SCALING_FACTOR = 100;
 
     public static void main(String[] args) throws InterruptedException
     {
@@ -49,8 +51,9 @@ public class TestApplication
 
     private void sleep(int millis)
     {
-        try {
-            Thread.sleep(millis);
+        try
+        {
+            Thread.sleep(millis*SCALING_FACTOR);
         }
         catch(InterruptedException e)
         {
@@ -61,7 +64,7 @@ public class TestApplication
     private boolean method2()
     {
         do {
-            synchronized( LOCK ) 
+            synchronized( LOCK )
             {
                 return rnd.nextBoolean();
             }
