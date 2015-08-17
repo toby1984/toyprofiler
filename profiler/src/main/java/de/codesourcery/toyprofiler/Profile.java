@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -20,7 +21,7 @@ import de.codesourcery.toyprofiler.util.XMLSerializer;
 import net.openhft.koloboke.collect.map.hash.HashIntObjMap;
 import net.openhft.koloboke.collect.map.hash.HashIntObjMaps;
 
-public class Profile
+public final class Profile
 {
     protected static final ConcurrentHashMap<Thread, Profile> PROFILES_BY_THREAD = new ConcurrentHashMap<>();
 
@@ -28,6 +29,8 @@ public class Profile
 
     protected static final HashIntObjMap<String> ID_TO_METHOD_NAME = HashIntObjMaps.newMutableMap( 2000 );
 
+    private static final boolean DONT_GUESS_STACKTRACE = false;
+    
     public static final ThreadLocal<Profile> INSTANCE = new ThreadLocal<Profile>()
     {
         @Override
@@ -226,10 +229,16 @@ public class Profile
     protected void onEnter(int method)
     {
     	MethodStats callee;
+    	final MethodStats currentMethod = this.currentMethod;
         if ( currentMethod == null )
         {
         	callee = new MethodStats(method);
-        	topLevelMethod = inspectStack(method,callee);
+        	if (DONT_GUESS_STACKTRACE ) {
+        	    topLevelMethod = callee;
+        	} else {
+        	    // TODO: FIXME !!! The following code works when running in 'request' mode but breaks stuff when profiling an app from the very beginning...
+        	    topLevelMethod = inspectStack(method,callee);
+        	}
         }
         else
         {
@@ -239,21 +248,24 @@ public class Profile
         		currentMethod.callees.put( method , callee );
         	}
         }
-        currentMethod = callee;
+        this.currentMethod = callee;
         callee.onEnter();
     }
+    
+    protected void onExit()
+    {
+        currentMethod.onExit();
+        currentMethod = currentMethod.parent;
+    }    
 
     private MethodStats inspectStack(int method, MethodStats calledMethod)
     {
-    	final Exception e = new Exception();
-    	e.fillInStackTrace();
-
     	final String threadName = Thread.currentThread().getName();
     	System.out.println("["+threadName+"] Trying to resolve top-level method from stack trace involving "+ID_TO_METHOD_NAME.get(calledMethod.method));
-
     	MethodStats result = calledMethod;
-    	final StackTraceElement[] stackTrace = e.getStackTrace();
-		for (int j = 3 ; j < stackTrace.length; j++)
+    	final StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+    	Arrays.stream( stackTrace ).forEach( System.out::println );
+		for (int j = 4 ; j < stackTrace.length; j++)
 		{
 			final StackTraceElement element = stackTrace[j];
 			if ( element.getMethodName() != null && ! element.getMethodName().contains( "ambda" ) && ! element.getClassName().contains(("ambda") ) )
@@ -263,7 +275,7 @@ public class Profile
 				if ( methodId != null )
 				{
 					final MethodStats parent = new MethodStats( methodId.intValue() );
-					calledMethod.setParent( parent );
+					result.setParent( parent );
 					parent.callees.put( calledMethod.method , result );
 					result = parent;
 				}
@@ -308,12 +320,6 @@ public class Profile
 				return null;
 		}
 	}
-
-	protected void onExit()
-    {
-        currentMethod.onExit();
-        currentMethod = currentMethod.parent;
-    }
 
     public static void registerMethod(String name,int id)
     {

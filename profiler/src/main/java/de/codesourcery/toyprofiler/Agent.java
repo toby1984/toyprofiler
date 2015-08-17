@@ -182,18 +182,7 @@ public class Agent
 			if ( DEBUG_PRINT_TRANSFORMED )
 			{
 				final TraceClassVisitor trace = new TraceClassVisitor( new PrintWriter(System.out) );
-				new ClassReader( result ).accept( new ClassVisitor(Opcodes.ASM5 , trace ) {
-					@Override
-					public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
-						final MethodVisitor result = super.visitMethod(access, className, desc, signature, exceptions);
-						return new MethodVisitor(Opcodes.ASM5, result )
-						{
-							@Override
-							public void visitLineNumber(int line, Label start) {
-							}
-						};
-					};
-				} , 0 );
+				new ClassReader( result ).accept( trace , 0 );
 			}
 			return result;
 		}
@@ -257,7 +246,6 @@ public class Agent
 
 	protected static final class MyWriter extends ClassVisitor
 	{
-		private int lineNumber = Integer.MAX_VALUE;
 		private boolean instrumentMethods=true;
 
 		private final Stack<String> classNameStack = new Stack<>();
@@ -308,7 +296,7 @@ public class Agent
 			super.visit(version, access, name, signature, superName, interfaces);
 			popClassname();
 		}
-
+		
 		@Override
 		public void visitOuterClass(String owner, String name, String desc)
 		{
@@ -346,18 +334,11 @@ public class Agent
 				System.out.println("Instrumenting method: "+currentClassName()+" - "+name+desc);
 			}
 
-			final String methodName;
-			if ( lineNumber == -1 ) {
-				methodName = currentClassName()+"|"+name+"|"+desc;
-			} else {
-				methodName = currentClassName()+"|"+name+"|"+desc+"|"+lineNumber;
-			}
 			final int methodId = uniqueID.incrementAndGet();
-
-			Profile.registerMethod( methodName , methodId );
-
 			return new MethodVisitor(Opcodes.ASM5,visitor)
 			{
+			    private Label methodStart=new Label();
+			    private int lineNumber = -1;
 				private Label start;
 				private Label end;
 				private Label successfulReturn;
@@ -366,15 +347,19 @@ public class Agent
 				@Override
 				public void visitLineNumber(int line, Label start)
 				{
-					if ( line < lineNumber ) {
-						lineNumber = line;
-					}
-					super.visitLineNumber(line, start);
+				    if ( lineNumber == -1 ) {
+				        lineNumber = line;
+				        super.visitLineNumber(line, methodStart );
+				    } else {
+				        super.visitLineNumber(line, start);
+				    }
 				}
 
 				@Override
-				public void visitCode() {
-
+				public void visitCode() 
+				{
+				    visitLabel( methodStart );
+				    
 					super.visitCode();
 
 					start = new Label();
@@ -387,7 +372,7 @@ public class Agent
 
 					mv.visitLabel( start );
 				}
-
+				
 				@Override
 				public void visitInsn(int opcode)
 				{
@@ -415,6 +400,14 @@ public class Agent
 				@Override
 				public void visitMaxs(int maxStack, int maxLocals)
 				{
+                    final String methodName;
+                    if ( lineNumber == -1 ) {
+                        methodName = currentClassName()+"|"+name+"|"+desc;
+                    } else {
+                        methodName = currentClassName()+"|"+name+"|"+desc+"|"+lineNumber;
+                    }           
+                    Profile.registerMethod( methodName , methodId );
+                    
 					mv.visitJumpInsn(Opcodes.GOTO, successfulReturn);
 
 					mv.visitLabel(end);
@@ -488,7 +481,6 @@ public class Agent
 		{
 			instrumentation.removeTransformer( redefineTransformer );
 		}
-
 	}
 
 	public static void stopProfiling()

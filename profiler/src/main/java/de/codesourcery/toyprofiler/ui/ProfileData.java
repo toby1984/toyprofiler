@@ -44,16 +44,15 @@ public final class ProfileData implements IRawMethodNameProvider
         this.sourceFile = sourceFile;
     }
     
-    public void save(IProfileIOAdapter serializer) throws IOException 
+    public void save(File file,IProfileIOAdapter serializer) throws IOException 
     {
-        if ( isDirty && hasFile() ) 
+       try ( FileOutputStream out = new FileOutputStream(file) ) 
         {
-            try ( FileOutputStream out = new FileOutputStream(sourceFile) ) 
-            {
-                serializer.save( container.getMethodNamesMap() , container.getProfiles() , out );
-            }
+            serializer.save( container.getMethodNamesMap() , container.getProfiles() , out );
         }
-    }
+       this.sourceFile = file;
+       this.isDirty = false;
+    }    
     
     public Optional<ZonedDateTime> getTimestamp() 
     {

@@ -74,7 +74,7 @@ public class FlameGraphViewer extends JFrame implements IGridBagHelper
     
     private final ViewingHistory history;
     
-    private final HistoryDialog historyDialog = new HistoryDialog(preferences);
+    private final HistoryDialog historyDialog = new HistoryDialog(preferences,ioAdapter);
 
     public static final class MethodDataProvider implements IDataProvider<MethodStats> 
     {
@@ -174,7 +174,8 @@ public class FlameGraphViewer extends JFrame implements IGridBagHelper
     public static void main(String[] args) throws FileNotFoundException, IOException, HeadlessException, InvocationTargetException, InterruptedException
     {
         final FlameGraphViewer viewer = new FlameGraphViewer();
-        if ( args.length > 0 ) {
+        if ( args.length > 0 ) 
+        {
             viewer.loadProfiles( new File[] { new File( args[0] ) } );
         }
     }
@@ -333,6 +334,8 @@ public class FlameGraphViewer extends JFrame implements IGridBagHelper
         final JMenu fileMenu = new JMenu("File");
 
         addMenuItem("Load profiles...",()->  loadProfiles() , fileMenu );
+        addMenuItem("Save current profile as...",()->  saveProfile() , fileMenu );
+        
         addMenuItem("Close current", this::closeCurrent, fileMenu , key( KeyEvent.VK_W, KeyEvent.CTRL_DOWN_MASK ) );
         
         addMenuItem("Reload", () -> 
@@ -432,7 +435,43 @@ public class FlameGraphViewer extends JFrame implements IGridBagHelper
         historyDialog.setVisible( true );
     }
     
+    private void saveProfile() {
+        try {
+            saveCurrentProfile( history , ioAdapter );
+        } catch (IOException e) {
+            error("Failed to save file",e);
+        }
+    }
+    
+    public static void saveCurrentProfile(ViewingHistory history,IProfileIOAdapter ioAdapter) throws IOException
+    {
+        if ( ! history.current().isPresent() ) {
+            return;
+        }
+        
+        final ProfileData profile = history.current().get();
+        final JFileChooser chooser = new JFileChooser( );
+        if ( profile.hasFile() ) 
+        {
+            chooser.setCurrentDirectory( profile.getSourceFile().get().getParentFile() );
+            chooser.setSelectedFile( profile.getSourceFile().get() );
+        }
+        if ( chooser.showSaveDialog( null ) == JFileChooser.APPROVE_OPTION ) 
+        {
+            history.saveCurrent( chooser.getSelectedFile() , ioAdapter );
+        }
+    }
+    
     private void loadProfiles() 
+    {
+        try {
+            loadProfiles(preferences,history,ioAdapter);
+        } catch (IOException e) {
+            error("Failed to load file(s)",e);
+        }
+    }
+    
+    public static void loadProfiles(Preferences preferences, ViewingHistory history, IProfileIOAdapter ioAdapter) throws FileNotFoundException, IOException 
     {
         final JFileChooser chooser = new JFileChooser( );
         final Optional<File> latestFile = preferences.getLastLoadDirectory();
@@ -460,11 +499,16 @@ public class FlameGraphViewer extends JFrame implements IGridBagHelper
         if ( chooser.showOpenDialog( null ) == JFileChooser.APPROVE_OPTION && chooser.getSelectedFiles().length >= 1 ) 
         {
             preferences.setLastLoadDirectory( chooser.getSelectedFiles()[0].getParentFile() );
-            loadProfiles( chooser.getSelectedFiles() );
+            loadProfiles( chooser.getSelectedFiles() , history , ioAdapter );
         }
     }
     
-    private void loadProfiles(File[] files) 
+    private void loadProfiles(File[] files) throws FileNotFoundException, IOException 
+    {
+        loadProfiles(files,history,ioAdapter);
+    }
+    
+    private static void loadProfiles(File[] files, ViewingHistory history, IProfileIOAdapter ioAdapter) throws FileNotFoundException, IOException 
     {
         for ( File file : files ) 
         {
@@ -472,10 +516,6 @@ public class FlameGraphViewer extends JFrame implements IGridBagHelper
             {
                 history.add( file , ioAdapter.load( in ) );
             } 
-            catch(Exception e) 
-            {
-                error("Failed to load data from "+file.getAbsolutePath()+" ("+e.getMessage()+")",e);
-            }
         }
     }
     

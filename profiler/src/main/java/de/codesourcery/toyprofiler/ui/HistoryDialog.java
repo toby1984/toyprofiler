@@ -25,6 +25,7 @@ import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.IDataProvider;
 import de.codesourcery.toyprofiler.ui.FlameGraphViewer.MethodDataProvider;
 import de.codesourcery.toyprofiler.ui.ViewingHistory.IViewChangeListener;
 import de.codesourcery.toyprofiler.util.IGridBagHelper;
+import de.codesourcery.toyprofiler.util.IProfileIOAdapter;
 
 public final class HistoryDialog extends JDialog implements IViewChangeListener , IGridBagHelper
 {
@@ -52,7 +53,7 @@ public final class HistoryDialog extends JDialog implements IViewChangeListener 
         return result;
     }
     
-    public HistoryDialog(Preferences preferences) 
+    public HistoryDialog(Preferences preferences,IProfileIOAdapter ioAdapter) 
     {
         super((Frame) null, "History", false );
         
@@ -68,6 +69,17 @@ public final class HistoryDialog extends JDialog implements IViewChangeListener 
             setVisible(false);
         });
         
+        final JButton load = new JButton("Load");
+        load.addActionListener( ev -> 
+        {
+            try {
+                FlameGraphViewer.loadProfiles( preferences , tableModel.getHistory() , ioAdapter );
+            } catch (Exception e1) {
+                error("Failed to load files");
+            }
+        });
+        
+        
         final JButton moveUp = new JButton("Up");
         moveUp.addActionListener( ev -> 
         {
@@ -81,6 +93,8 @@ public final class HistoryDialog extends JDialog implements IViewChangeListener 
             final ProfileData[] selection = getSelectedRows();
             Arrays.stream( selection ).forEach( s ->  tableModel.getHistory().moveDown( selection[0] ) );
         });        
+        
+        
         
         final JButton unloadProfile = new JButton("Unload");
         unloadProfile.addActionListener( ev -> 
@@ -99,12 +113,13 @@ public final class HistoryDialog extends JDialog implements IViewChangeListener 
         JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout( new GridBagLayout() );
         
-        buttonPanel.add( moveUp   , IGridBagHelper.cnstrs(0,0).weightX(1.0).noMargin().build() );
-        buttonPanel.add( moveDown , IGridBagHelper.cnstrs(0,1).weightX(1.0).noMargin().marginBottom(20).build() );
+        buttonPanel.add( load     , IGridBagHelper.cnstrs(0,0).weightX(1.0).marginBottom(20).build() );
+        buttonPanel.add( moveUp   , IGridBagHelper.cnstrs(0,1).weightX(1.0).noMargin().build() );
+        buttonPanel.add( moveDown , IGridBagHelper.cnstrs(0,2).weightX(1.0).noMargin().marginBottom(20).build() );
 
-        buttonPanel.add( compare  , IGridBagHelper.cnstrs(0,2).weightX(1.0).noMargin().marginBottom(5).marginTop(5).build() );
-        buttonPanel.add( closeDialog   , IGridBagHelper.cnstrs(0,3).weightX(1.0).noMargin().build() );
-        buttonPanel.add( unloadProfile , IGridBagHelper.cnstrs(0,4).weightX(1.0).noMargin().build() );
+        buttonPanel.add( compare  , IGridBagHelper.cnstrs(0,3).weightX(1.0).noMargin().marginBottom(5).marginTop(5).build() );
+        buttonPanel.add( closeDialog   , IGridBagHelper.cnstrs(0,4).weightX(1.0).noMargin().build() );
+        buttonPanel.add( unloadProfile , IGridBagHelper.cnstrs(0,5).weightX(1.0).noMargin().build() );
         
         
         panel.add( buttonPanel , IGridBagHelper.cnstrs(1,0).build() );

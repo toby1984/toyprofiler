@@ -238,12 +238,10 @@ public final class ViewingHistory
     
     public void saveCurrent(File file,IProfileIOAdapter ioAdapter) throws IOException 
     {
-        if ( current().isPresent() ) 
-        {
-            final ProfileData profileData = current().get();
-            ioAdapter.save( profileData.getMethodMap() , profileData.getProfiles() , new FileOutputStream( file ) );
-            profileData.setFile( file );
-        }
+        final ProfileData profileData = current().get();
+        ioAdapter.save( profileData.getMethodMap() , profileData.getProfiles() , new FileOutputStream( file ) );
+        profileData.setFile( file );
+        notifyListeners( current() );
     }
 
     public void moveUp(ProfileData profileData) 
