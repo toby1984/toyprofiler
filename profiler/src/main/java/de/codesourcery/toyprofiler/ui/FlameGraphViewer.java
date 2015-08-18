@@ -46,6 +46,7 @@ import javax.swing.filechooser.FileFilter;
 
 import de.codesourcery.toyprofiler.MethodStatsHelper;
 import de.codesourcery.toyprofiler.Profile;
+import de.codesourcery.toyprofiler.Profile.MethodIdentifier;
 import de.codesourcery.toyprofiler.Profile.MethodStats;
 import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.IDataProvider;
 import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.IVisitor;
@@ -164,10 +165,21 @@ public class FlameGraphViewer extends JFrame implements IGridBagHelper
                 throw new IllegalStateException("Called without previous profile ?"); 
             }
             final int[] methodIds = currentNode.getPathFromRoot();
-            final String[] methodNames = currentResolver.resolveMethodIds( methodIds );
+            final MethodIdentifier[] methodNames = currentResolver.resolveMethodIds( methodIds );
             final int[] previousMethodIds = previousResolver.resolveMethodNames( methodNames );
             final MethodStats previousNode = previousProfile.lookupByPath( previousMethodIds );
             return previousNode.getPercentageOfParentTime();
+        }
+        
+        @Override
+        public boolean areEquivalent(MethodStats a, MethodStats b) 
+        {
+            if ( a == null || b == null ) {
+                throw new IllegalArgumentException();
+            }
+            return a == b || (currentResolver.getClassName( a ).equals( currentResolver.getClassName( b ) ) &&
+                   currentResolver.getMethodName( a ).equals( currentResolver.getMethodName( b ) ) &&
+                   currentResolver.getMethodSignature( a ).equals( currentResolver.getMethodSignature( b ) ) );
         }
     }
 

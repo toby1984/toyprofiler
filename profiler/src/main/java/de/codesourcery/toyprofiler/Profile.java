@@ -27,9 +27,9 @@ public final class Profile
 
     protected static volatile boolean profilingEnabled;
 
-    protected static final HashIntObjMap<String> ID_TO_METHOD_NAME = HashIntObjMaps.newMutableMap( 2000 );
+    protected static final HashIntObjMap<MethodIdentifier> ID_TO_METHOD_NAME = HashIntObjMaps.newMutableMap( 2000 );
 
-    private static final boolean DONT_GUESS_STACKTRACE = false;
+    private static final boolean DONT_GUESS_STACKTRACE = true;
     
     public static final ThreadLocal<Profile> INSTANCE = new ThreadLocal<Profile>()
     {
@@ -41,6 +41,101 @@ public final class Profile
             return profile;
         }
     };
+    
+    public static final class MethodIdentifier {
+        
+        public final String className;
+        public final String methodName;
+        public final String methodSignature;
+        public final int lineNumber;
+        
+        public MethodIdentifier(String className,String methodName,String methodSignature) 
+        {
+            if ( className == null || methodName == null || methodSignature == null ) {
+                throw new IllegalArgumentException();
+            }
+            if ( ! methodSignature.startsWith("(" ) ) {
+                throw new IllegalArgumentException("Invalid method signature: "+methodSignature);
+            }
+            this.className = className;
+            this.methodName = methodName;
+            this.methodSignature = methodSignature;
+            this.lineNumber = -1;
+        }
+        
+        public MethodIdentifier(String className,String methodName,String methodSignature,int lineNumber) 
+        {
+            if ( className == null || methodName == null || methodSignature == null ) {
+                throw new IllegalArgumentException();
+            }
+            if ( ! methodSignature.startsWith("(" ) ) {
+                throw new IllegalArgumentException("Invalid method signature: "+methodSignature);
+            }
+            if ( lineNumber < 1 ) {
+                throw new IllegalArgumentException();
+            }
+            this.className = className;
+            this.methodName = methodName;
+            this.methodSignature = methodSignature;
+            this.lineNumber = lineNumber;
+        }       
+        
+        public boolean hasLineNumber() {
+            return lineNumber != -1;
+        }
+        
+        public boolean matches(String className,String methodName) {
+            return this.className.equals( className ) && this.methodName.equals( methodName );
+        }
+        
+        public boolean matches(MethodIdentifier other) 
+        {
+            if ( other != null ) {
+                return this.className.equals( other.className ) &&
+                        this.methodName.equals( other.methodName ) &&
+                        this.methodSignature.equals( other.methodSignature ) &&
+                        this.lineNumber == other.lineNumber;
+            }
+            return false;
+        }
+        
+        public boolean matchesIgnoringLineNumber(MethodIdentifier other) 
+        {
+            if ( other != null ) {
+                return this.className.equals( other.className ) &&
+                        this.methodName.equals( other.methodName ) &&
+                        this.methodSignature.equals( other.methodSignature );
+            }
+            return false;
+        }        
+        
+        @Override
+        public boolean equals(Object obj) {
+            throw new UnsupportedOperationException("equals()");
+        }
+        
+        @Override
+        public int hashCode() {
+            throw new UnsupportedOperationException("hashCode()");
+        }
+        
+        @Override
+        public String toString() 
+        {
+            if ( lineNumber == -1 ) {
+                return className+"|"+methodName+"|"+methodSignature;
+            }
+            return className+"|"+methodName+"|"+methodSignature+"|"+lineNumber;
+        }
+        
+        public static MethodIdentifier fromString(String s) {
+            final String[] parts = s.split("\\|");
+            if ( parts.length == 3 ) {
+                return new MethodIdentifier( parts[0] , parts[1] , parts[2] );
+            }
+            return new MethodIdentifier( parts[0] , parts[1] , parts[2] , Integer.parseInt( parts[3] ) );
+        }
+    }
 
     public interface IMethodStatsVisitor
     {
@@ -292,9 +387,9 @@ public final class Profile
 		final String prefix = clazz+"|"+method;
 		final List<Integer> candidates = new ArrayList<>();
 		System.out.println("["+threadName+"] Looking for '"+prefix+"'");
-		for ( Entry<Integer, String> existing : ID_TO_METHOD_NAME.entrySet() )
+		for ( Entry<Integer, MethodIdentifier> existing : ID_TO_METHOD_NAME.entrySet() )
 		{
-			if ( existing.getValue().startsWith( prefix ) ) {
+			if ( existing.getValue().matches( clazz , method ) ) {
 				candidates.add( existing.getKey() );
 			}
 		}
@@ -306,22 +401,21 @@ public final class Profile
 			default:
 				for ( Integer key : candidates )
 				{
-					final String[] parts = ID_TO_METHOD_NAME.get(key.intValue()).split("\\|");
-					if ( parts.length == 4 )
+					final MethodIdentifier parts = ID_TO_METHOD_NAME.get(key.intValue());
+					if ( parts.hasLineNumber() )
 					{
-						final int lineNo = Integer.parseInt( parts[3] );
-						if ( lineNo == element.getLineNumber() ) {
+						if ( parts.lineNumber == element.getLineNumber() ) {
 							return key;
 						}
 					}
 				}
-				System.err.println("WARN: Found candidates ("+candidates.stream().map( ID_TO_METHOD_NAME::get ).collect(Collectors.joining(","))+") "
+				System.err.println("WARN: Found candidates ("+candidates.stream().map( ID_TO_METHOD_NAME::get ).map( s -> s.toString() ).collect(Collectors.joining(","))+") "
 						+ "but none matched the linenumber from the JVM StackTraceElement ("+element.getLineNumber()+")");
 				return null;
 		}
 	}
 
-    public static void registerMethod(String name,int id)
+    public static void registerMethod(MethodIdentifier name,int id)
     {
    		ID_TO_METHOD_NAME.put( id , name );
     }
@@ -427,16 +521,21 @@ public final class Profile
         final IRawMethodNameProvider provider = new IRawMethodNameProvider() {
 
             @Override
-            public String getRawMethodName(int methodId) {
+            public MethodIdentifier getRawMethodName(int methodId) {
                 return ID_TO_METHOD_NAME.get(methodId);
             }
 
             @Override
-            public int getMethodId(String rawMethodName)
+            public int getMethodId(MethodIdentifier rawMethodName,boolean ignoreLineNumber)
             {
-                for ( final Entry<Integer, String> entry : ID_TO_METHOD_NAME.entrySet() )
+                for ( final Entry<Integer, MethodIdentifier> entry : ID_TO_METHOD_NAME.entrySet() )
                 {
-                    if ( entry.getValue().equals( rawMethodName ) ) {
+                    if ( ignoreLineNumber ) 
+                    {
+                        if ( entry.getValue().matchesIgnoringLineNumber( rawMethodName ) ) {
+                            return entry.getKey();
+                        }
+                    } else if ( entry.getValue().matches( rawMethodName ) ) {
                         return entry.getKey();
                     }
                 }
@@ -444,7 +543,7 @@ public final class Profile
             }
 
             @Override
-            public Map<Integer, String> getMethodMap() {
+            public Map<Integer, MethodIdentifier> getMethodMap() {
                 return ID_TO_METHOD_NAME;
             }
         };

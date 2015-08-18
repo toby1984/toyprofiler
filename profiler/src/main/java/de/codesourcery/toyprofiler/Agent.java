@@ -28,6 +28,7 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.util.TraceClassVisitor;
 
+import de.codesourcery.toyprofiler.Profile.MethodIdentifier;
 import de.codesourcery.toyprofiler.util.ClassMatcher;
 import de.codesourcery.toyprofiler.util.ParameterMap;
 
@@ -400,11 +401,11 @@ public class Agent
 				@Override
 				public void visitMaxs(int maxStack, int maxLocals)
 				{
-                    final String methodName;
+                    final MethodIdentifier methodName;
                     if ( lineNumber == -1 ) {
-                        methodName = currentClassName()+"|"+name+"|"+desc;
+                        methodName = new MethodIdentifier(currentClassName() , name , desc );
                     } else {
-                        methodName = currentClassName()+"|"+name+"|"+desc+"|"+lineNumber;
+                        methodName =  new MethodIdentifier(currentClassName() , name , desc , lineNumber );
                     }           
                     Profile.registerMethod( methodName , methodId );
                     

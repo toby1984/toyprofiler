@@ -22,6 +22,7 @@ import de.codesourcery.toyprofiler.MethodStatsHelper;
 import de.codesourcery.toyprofiler.Profile.MethodStats;
 import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.FlameGraph;
 import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.IDataProvider;
+import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.IVisitor;
 import de.codesourcery.toyprofiler.ui.FlameGraphRenderer.RectangularRegion;
 import de.codesourcery.toyprofiler.ui.FlameGraphViewer.MethodDataProvider;
 import de.codesourcery.toyprofiler.ui.Preferences.IPrefChangeListener;
@@ -187,6 +188,22 @@ public class FlameGraphPanel extends JPanel implements IViewChangeListener
             resolver = MethodStatsHelper.NOP_INSTANCE;
         }
         renderer = new FlameGraphRenderer<MethodStats>( dataProvider , getColorScheme() );
+        if ( zoom != null ) // map zoom to (possibly) new method tree
+        {
+            final MethodStats[] newZoom = { null };
+            final IVisitor<MethodStats> visitor = new IVisitor<MethodStats>() {
+
+                @Override
+                public void visit(MethodStats item, int depth) 
+                {
+                    if ( newZoom[0] == null && ( item == zoom || dataProvider.areEquivalent( item, zoom ) ) ) {
+                        newZoom[0] = item;
+                    }
+                }
+            };
+            dataProvider.visitSubtree( dataProvider.getRoot() , visitor );
+            zoom = newZoom[0];
+        }
         forcedRepaint();
     }
 
@@ -235,11 +252,11 @@ public class FlameGraphPanel extends JPanel implements IViewChangeListener
 
             graph = renderGraph(w,h);
             if ( currentSelection != null ) {
-                currentSelection = graph.find( currentSelection.stats );
+                currentSelection = graph.find( currentSelection.stats , dataProvider );
                 selectionChanged( currentSelection == null ? null : currentSelection.stats );
             }
             if ( highlight != null ) {
-                highlight = graph.find( highlight.stats );
+                highlight = graph.find( highlight.stats , dataProvider );
             }
         }
         g.drawImage( graph.getImage() , 0 , 0 , null );

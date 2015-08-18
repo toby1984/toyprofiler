@@ -17,6 +17,7 @@ import javax.xml.stream.XMLStreamReader;
 import javax.xml.stream.XMLStreamWriter;
 
 import de.codesourcery.toyprofiler.Profile;
+import de.codesourcery.toyprofiler.Profile.MethodIdentifier;
 import de.codesourcery.toyprofiler.Profile.MethodStats;
 import de.codesourcery.toyprofiler.ProfileContainer;
 import net.openhft.koloboke.collect.map.hash.HashIntObjMap;
@@ -124,7 +125,7 @@ public class XMLSerializer implements IProfileIOAdapter
     {
         final List<Profile> result = new ArrayList<>();
 
-        final HashIntObjMap<String> methodNameMap = HashIntObjMaps.newMutableMap( 2000 );
+        final HashIntObjMap<MethodIdentifier> methodNameMap = HashIntObjMaps.newMutableMap( 2000 );
 
         XMLStreamReader reader = null;
         try
@@ -141,7 +142,7 @@ public class XMLSerializer implements IProfileIOAdapter
                         {
                             final int id = Integer.parseInt( readAttribute( "id" , reader ) );
                             final String name = readAttribute( "name" , reader );
-                            methodNameMap.put(id,name);
+                            methodNameMap.put(id, MethodIdentifier.fromString( name ) );
                         }
                         else if ( "profile".equals( reader.getLocalName() ) )
                         {
@@ -171,7 +172,7 @@ public class XMLSerializer implements IProfileIOAdapter
      * @see de.codesourcery.toyprofiler.util.IProfileIOAdapter#save(java.util.Map, java.util.Collection, java.io.OutputStream)
      */
     @Override
-    public void save(Map<Integer,String> methodNameMap , Collection<Profile> profiles, OutputStream out) throws IOException
+    public void save(Map<Integer,MethodIdentifier> methodNameMap , Collection<Profile> profiles, OutputStream out) throws IOException
     {
         boolean success = false;
         XMLStreamWriter writer = null;
@@ -186,10 +187,10 @@ public class XMLSerializer implements IProfileIOAdapter
             writer.writeStartElement("methodNames"); // <methodNames>
             for ( Integer id : methodNameMap.keySet() )
             {
-                final String name = methodNameMap.get( id.intValue() );
+                final MethodIdentifier name = methodNameMap.get( id.intValue() );
                 writer.writeStartElement("methodName"); // <methodName...>
                 writer.writeAttribute( "id" , Integer.toString(id) );
-                writer.writeAttribute( "name" , name );
+                writer.writeAttribute( "name" , name.toString() );
                 writer.writeEndElement(); // </methodName>
             }
             writer.writeEndElement(); // </methodNames>

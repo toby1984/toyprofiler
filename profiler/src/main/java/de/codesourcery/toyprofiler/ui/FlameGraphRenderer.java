@@ -49,6 +49,8 @@ public class FlameGraphRenderer<T>
         public void visitSubtree(T startNode,IVisitor<T> visitor);
 
         public String getLabel(T node,Graphics2D graphics,int maxWidth);
+        
+        public boolean areEquivalent(T a,T b);
     }
 
     public void setColorScheme(ColorScheme scheme) {
@@ -101,12 +103,12 @@ public class FlameGraphRenderer<T>
             return null;
         }
 
-        public RectangularRegion<T> find(T stats) 
+        public RectangularRegion<T> find(T stats,IDataProvider<T> dataProvider) 
         {
             for (int i = 0,len = regions.size() ; i < len ; i++)
             {
                 final RectangularRegion<T> r = regions.get(i);
-                if ( r.stats == stats ) {
+                if (  dataProvider.areEquivalent( r.stats , stats ) ) {
                     return r; 
                 }
             }
@@ -291,6 +293,7 @@ public class FlameGraphRenderer<T>
             } 
             catch( NoSuchElementException |  IllegalStateException e) 
             {
+                e.printStackTrace();
                 graphics.setColor( Color.GRAY );
                 graphics.fillRect( r.x , r.y , r.width , r.height );
             }

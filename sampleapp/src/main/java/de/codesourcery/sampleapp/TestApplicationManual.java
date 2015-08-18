@@ -8,6 +8,7 @@ import java.util.concurrent.CountDownLatch;
 
 import de.codesourcery.toyprofiler.MethodStatsHelper;
 import de.codesourcery.toyprofiler.Profile;
+import de.codesourcery.toyprofiler.Profile.MethodIdentifier;
 import de.codesourcery.toyprofiler.ProfileContainer;
 import de.codesourcery.toyprofiler.util.XMLSerializer;
 
@@ -17,11 +18,11 @@ public class TestApplicationManual
 
     public static void main(String[] args) throws InterruptedException, IOException
     {
-    	Profile.registerMethod("de/codesourcery/sampleapp/TestApplicationManual|run|()",0);
-    	Profile.registerMethod("de/codesourcery/sampleapp/TestApplicationManual|method1|()",1);
-    	Profile.registerMethod("de/codesourcery/sampleapp/TestApplicationManual|method2|()",2);
-    	Profile.registerMethod("de/codesourcery/sampleapp/TestApplicationManual|method3|()",3);
-    	Profile.registerMethod("de/codesourcery/sampleapp/TestApplicationManual|method4|()",4);
+    	Profile.registerMethod(new MethodIdentifier("de/codesourcery/sampleapp/TestApplicationManual","run","()"),0);
+    	Profile.registerMethod(new MethodIdentifier("de/codesourcery/sampleapp/TestApplicationManual","method1","()"),1);
+    	Profile.registerMethod(new MethodIdentifier("de/codesourcery/sampleapp/TestApplicationManual","method2","()"),2);
+    	Profile.registerMethod(new MethodIdentifier("de/codesourcery/sampleapp/TestApplicationManual","method3","()"),3);
+    	Profile.registerMethod(new MethodIdentifier("de/codesourcery/sampleapp/TestApplicationManual","method4","()"),4);
 
         final CountDownLatch latch = new CountDownLatch(5);
         for ( int i = 0 ; i < 5 ; i++ )

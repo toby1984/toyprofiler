@@ -12,6 +12,7 @@ import java.util.Optional;
 
 import de.codesourcery.toyprofiler.IRawMethodNameProvider;
 import de.codesourcery.toyprofiler.Profile;
+import de.codesourcery.toyprofiler.Profile.MethodIdentifier;
 import de.codesourcery.toyprofiler.ProfileContainer;
 import de.codesourcery.toyprofiler.util.IProfileIOAdapter;
 import de.codesourcery.toyprofiler.util.ParameterMap;
@@ -122,13 +123,13 @@ public final class ProfileData implements IRawMethodNameProvider
     }
 
     @Override
-    public String getRawMethodName(int methodId) {
+    public MethodIdentifier getRawMethodName(int methodId) {
         return container.getRawMethodName( methodId );
     }
 
     @Override
-    public int getMethodId(String rawMethodName) {
-        return container.getMethodId( rawMethodName ); 
+    public int getMethodId(MethodIdentifier rawMethodName,boolean ignoreLineNumber) {
+        return container.getMethodId( rawMethodName , ignoreLineNumber); 
     }
 
     public Optional<Profile> getProfileByThreadName(String threadName) 
@@ -137,7 +138,7 @@ public final class ProfileData implements IRawMethodNameProvider
     }
 
     @Override
-    public Map<Integer, String> getMethodMap() {
+    public Map<Integer, MethodIdentifier> getMethodMap() {
         return container.getMethodMap();
     }
 }

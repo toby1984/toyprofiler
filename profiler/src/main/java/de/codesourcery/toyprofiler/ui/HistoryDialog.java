@@ -107,7 +107,7 @@ public final class HistoryDialog extends JDialog implements IViewChangeListener 
         final JButton compare = new JButton("Compare");
         compare.addActionListener( ev -> compareProfiles() );
         
-        table.setPreferredSize( new Dimension(400,400 ) );
+        table.setPreferredSize( new Dimension(470,400 ) );
         panel.add( new JScrollPane(table ) , IGridBagHelper.cnstrs(0,0).weightX(1).weightY(1).build() );
         
         JPanel buttonPanel = new JPanel();
@@ -126,7 +126,7 @@ public final class HistoryDialog extends JDialog implements IViewChangeListener 
         
         add( panel );
         
-        table.addMouseListener( new MouseAdapter() {
+        final MouseAdapter mouseListener = new MouseAdapter() {
             
             public void mouseClicked(MouseEvent e) 
             {
@@ -140,7 +140,23 @@ public final class HistoryDialog extends JDialog implements IViewChangeListener 
                     }
                 }
             }
-        });
+            public void mouseMoved(MouseEvent e) 
+            {
+                final int row = table.rowAtPoint( e.getPoint() );
+                if ( row != -1 ) 
+                {
+                    final ProfileData hovered = tableModel.getRow(row);
+                    if ( hovered.hasFile() ) 
+                    {
+                        table.setToolTipText( hovered.getSourceFile().get().getAbsolutePath() );
+                        return;
+                    }
+                } 
+                table.setToolTipText( null );
+            }
+        };
+        table.addMouseListener( mouseListener);
+        table.addMouseMotionListener( mouseListener);
     }
     
     private void compareProfiles() 

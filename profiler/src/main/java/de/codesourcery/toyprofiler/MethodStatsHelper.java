@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 import org.objectweb.asm.Type;
 
+import de.codesourcery.toyprofiler.Profile.MethodIdentifier;
 import de.codesourcery.toyprofiler.Profile.MethodStats;
 
 public class MethodStatsHelper 
@@ -17,17 +18,17 @@ public class MethodStatsHelper
     public static final MethodStatsHelper NOP_INSTANCE = new MethodStatsHelper( new IRawMethodNameProvider() {
         
         @Override
-        public String getRawMethodName(int methodId) {
+        public MethodIdentifier getRawMethodName(int methodId) {
             return null;
         }
         
         @Override
-        public int getMethodId(String rawMethodName) {
+        public int getMethodId(MethodIdentifier rawMethodName,boolean ignoreLineNumber) {
             throw new NoSuchElementException("Failed to resolve raw method name '"+rawMethodName+"'");
         }
 
         @Override
-        public Map<Integer, String> getMethodMap() {
+        public Map<Integer, MethodIdentifier> getMethodMap() {
             return new HashMap<>();
         }
     });
@@ -36,12 +37,12 @@ public class MethodStatsHelper
         this.resolver = resolver;
     }
     
-    public String[] resolveMethodIds(int[] methodIds) throws NoSuchElementException
+    public MethodIdentifier[] resolveMethodIds(int[] methodIds) throws NoSuchElementException
     {
-        final String[] result = new String[ methodIds.length ];
+        final MethodIdentifier[] result = new MethodIdentifier[ methodIds.length ];
         for ( int i = 0,len=result.length ; i < len ; i++ ) 
         {
-            final String rawMethodName = resolver.getRawMethodName( methodIds[i] );
+            final MethodIdentifier rawMethodName = resolver.getRawMethodName( methodIds[i] );
             if ( rawMethodName == null ) {
                 throw new NoSuchElementException("Failed to resolve method name for methodId "+methodIds[i]);
             }
@@ -50,18 +51,33 @@ public class MethodStatsHelper
         return result;
     }
     
-    public int[] resolveMethodNames(String[] rawMethodNames) throws NoSuchElementException
+    public int[] resolveMethodNames(MethodIdentifier[] rawMethodNames) throws NoSuchElementException
     {
         final int[] result = new int[ rawMethodNames.length ];
         for ( int i = 0,len=result.length ; i < len ; i++ ) 
         {
-            result[i] = resolver.getMethodId( rawMethodNames[i] );
+            try {
+                result[i] = resolver.getMethodId( rawMethodNames[i] , true );
+            }
+            catch(NoSuchElementException e) 
+            {
+//                resolver.getMethodMap().values().stream().map( s -> s.toString() ).sorted().forEach( s -> System.out.println("GOT: "+s) );
+                final String resolved = Arrays.stream( rawMethodNames ).limit( i ).map(s ->s.toString()).collect( Collectors.joining(" <-> " ) );
+                final String unresolved = Arrays.stream( rawMethodNames ).skip( i ).map( s -> s.toString() ).collect( Collectors.joining(" <-> " ) );
+                System.out.flush();
+                System.err.flush();                
+                System.out.println("\nRESOLVED  : "+resolved);
+                System.out.println("\nUNRESOLVED: "+unresolved);
+                System.out.flush();
+                System.err.flush();
+                throw e;
+            }
         }
         return result;
     }
     
     public String getMethodName(MethodStats stats) {
-        return getRawMethodName(stats).split("\\|")[1].replace("()","");
+        return getRawMethodName(stats).methodName;
     }
 
     public String getClassName(MethodStats stats) {
@@ -69,7 +85,7 @@ public class MethodStatsHelper
     }
     
     public String getRawClassName(MethodStats stats) {
-        return getRawMethodName(stats).split("\\|")[0];
+        return getRawMethodName(stats).className;
     }
 
     public String getSimpleClassName(MethodStats stats)
@@ -80,7 +96,13 @@ public class MethodStatsHelper
     
     public String getMethodSignature(MethodStats stats) 
     {
-        return Arrays.stream( Type.getArgumentTypes( getRawMethodSignature(stats) ) ).map( this::toSimpleClassName ).collect(Collectors.joining(","));
+        try {
+            return Arrays.stream( Type.getArgumentTypes( getRawMethodSignature(stats) ) ).map( this::toSimpleClassName ).collect(Collectors.joining(","));
+        } catch(ArrayIndexOutOfBoundsException e) 
+        {
+            System.out.println("signature: "+getRawMethodSignature( stats ) );
+            throw e;
+        }
     }
     
     private String toSimpleClassName(Type t) 
@@ -96,13 +118,13 @@ public class MethodStatsHelper
     }
 
     public String getRawMethodSignature(MethodStats stats) {
-        return getRawMethodName(stats).split("\\|")[2];
+        return getRawMethodName(stats).methodSignature;
     }
     
     private String toText(MethodStats stats)
     {
         final float avgTime = stats.getTotalTimeMillis() / stats.getInvocationCount();
-        final String sAvgTime = ""+( avgTime < 1 ? avgTime*1000000f+" ns" : avgTime+" ms" );
+        final String sAvgTime = ""+( avgTime < 1 ?  avgTime*1000000f+" ns" : avgTime+" ms" );
         final String sTotalTime = ""+( stats.getTotalTimeMillis() < 1 ? stats.getTotalTimeMillis() *1000000f+" ns" : stats.getTotalTimeMillis()+" ms" );
         return getRawMethodName(stats)+" | invocations: "+stats.getInvocationCount()+" | avg. time: "+sAvgTime+" | total time: "+sTotalTime;
     }
@@ -137,9 +159,8 @@ public class MethodStatsHelper
         }
     }  
     
-    public String getRawMethodName(MethodStats stats) 
+    public MethodIdentifier getRawMethodName(MethodStats stats) 
     {
-        final String name =  resolver.getRawMethodName( stats.getMethodId() );
-        return name == null ? "<unknown class>|<unknown method>|()>" : name;
+        return resolver.getRawMethodName( stats.getMethodId() );
     }       
 }

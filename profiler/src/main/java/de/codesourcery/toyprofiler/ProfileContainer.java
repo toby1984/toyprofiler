@@ -7,18 +7,20 @@ import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
+import de.codesourcery.toyprofiler.Profile.MethodIdentifier;
+
 public class ProfileContainer implements IRawMethodNameProvider , Iterable<Profile>
 {
     private final List<Profile> profiles;
-    private final Map<Integer,String> methodNames;
+    private final Map<Integer,MethodIdentifier> methodNames;
 
-    public ProfileContainer(List<Profile> profiles,Map<Integer,String> methodNames) 
+    public ProfileContainer(List<Profile> profiles,Map<Integer,MethodIdentifier> methodNames) 
     {
         this.profiles = profiles;
         this.methodNames = methodNames;
     }
     
-    public Map<Integer, String> getMethodNamesMap() {
+    public Map<Integer, MethodIdentifier> getMethodNamesMap() {
         return methodNames;
     }
     
@@ -40,7 +42,7 @@ public class ProfileContainer implements IRawMethodNameProvider , Iterable<Profi
     }
     
     @Override
-    public String getRawMethodName(int methodId) 
+    public MethodIdentifier getRawMethodName(int methodId) 
     {
         return methodNames.get( methodId );
     }
@@ -64,11 +66,16 @@ public class ProfileContainer implements IRawMethodNameProvider , Iterable<Profi
     }
 
     @Override
-    public int getMethodId(String rawMethodName) 
+    public int getMethodId(MethodIdentifier rawMethodName,boolean ignoreLineNumber) 
     {
-        for ( final Entry<Integer, String> entry : methodNames.entrySet() ) 
+        for ( final Entry<Integer, MethodIdentifier> entry : methodNames.entrySet() ) 
         {
-            if ( entry.getValue().equals( rawMethodName ) ) {
+            if ( ignoreLineNumber ) 
+            {
+                if ( entry.getValue().matchesIgnoringLineNumber( rawMethodName ) ) {
+                    return entry.getKey();
+                }
+            } else if ( entry.getValue().matches( rawMethodName ) ) {
                 return entry.getKey();
             }
         }
@@ -76,7 +83,7 @@ public class ProfileContainer implements IRawMethodNameProvider , Iterable<Profi
     }
 
     @Override
-    public Map<Integer, String> getMethodMap() {
+    public Map<Integer, MethodIdentifier> getMethodMap() {
         return methodNames;
     }
 }

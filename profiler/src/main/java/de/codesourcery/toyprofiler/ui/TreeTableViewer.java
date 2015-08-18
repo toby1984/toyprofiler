@@ -9,6 +9,7 @@ import java.util.List;
 import de.codesourcery.toyprofiler.MethodStatsHelper;
 import de.codesourcery.toyprofiler.Profile;
 import de.codesourcery.toyprofiler.ProfileContainer;
+import de.codesourcery.toyprofiler.Profile.MethodIdentifier;
 import de.codesourcery.toyprofiler.Profile.MethodStats;
 import de.codesourcery.toyprofiler.util.XMLSerializer;
 import javafx.application.Application;
@@ -79,7 +80,8 @@ public class TreeTableViewer extends Application {
                 switch( column) 
                 {
                     case 0:
-                        return resolver.getRawMethodName( ((MethodStats) node.value() ) );
+                        final MethodIdentifier id = resolver.getRawMethodName( ((MethodStats) node.value() ) );
+                        return id == null ?  "<unknown method>" : id.toString();
                     case 1:
                         return ""+((MethodStats) node.value()).getInvocationCount();
                     case 2:

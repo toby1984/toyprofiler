@@ -37,7 +37,7 @@ public final class HistoryTableModel extends DefaultTableModel implements IViewC
         {
             @Override
             public Object getValue(ProfileData row) {
-                return row.getSourceFile().map( f -> f.getAbsolutePath() ).orElse("<no file>");
+                return row.getSourceFile().map( f -> f.getName() ).orElse("<no file>");
             }
         });
         columns.add( new Column(idx++,"Timestamp",String.class ) 
