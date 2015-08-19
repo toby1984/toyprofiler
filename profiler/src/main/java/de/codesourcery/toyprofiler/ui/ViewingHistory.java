@@ -16,13 +16,13 @@ import de.codesourcery.toyprofiler.ProfileContainer;
 import de.codesourcery.toyprofiler.util.IProfileIOAdapter;
 import de.codesourcery.toyprofiler.util.XMLSerializer;
 
-public final class ViewingHistory 
+public final class ViewingHistory
 {
     private final List<IViewChangeListener> listeners = new ArrayList<>();
     private final List<ProfileData> history = new ArrayList<>();
     private int ptr;
 
-    public interface IViewChangeListener 
+    public interface IViewChangeListener
     {
         public void viewChanged(Optional<ProfileData> data,boolean triggeredFromComboBox);
     }
@@ -30,28 +30,28 @@ public final class ViewingHistory
     public void addListener(IViewChangeListener l) {
         this.listeners.add(l);
     }
-    
+
     public void removeListener(IViewChangeListener l) {
         this.listeners.remove(l);
     }
 
     public Optional<File> currentFile() {
         return current().filter( ProfileData::hasFile ).flatMap( ProfileData::getSourceFile );
-    }        
+    }
 
     public int size() {
         return history.size();
     }
 
-    public List<ProfileData> getItems() 
+    public List<ProfileData> getItems()
     {
         return new ArrayList<>( history );
     }
 
-    public void add(File file,ProfileContainer container) 
+    public void add(File file,ProfileContainer container)
     {
         Optional<Profile> newSelection = findSameProfile( container );
-        if ( ! newSelection.isPresent() && container.size() > 0 ) 
+        if ( ! newSelection.isPresent() && container.size() > 0 )
         {
             newSelection = Optional.of( container.getProfiles().get(0) );
         }
@@ -60,7 +60,7 @@ public final class ViewingHistory
         notifyListeners( current() );
     }
 
-    private Optional<Profile> findSameProfile(ProfileContainer container) 
+    private Optional<Profile> findSameProfile(ProfileContainer container)
     {
         final Optional<String> currentThread = current().flatMap( s -> s.getSelectedProfile() ).map( p -> p.getThreadName() );
         if ( currentThread.isPresent() ) {
@@ -69,10 +69,10 @@ public final class ViewingHistory
         return Optional.empty();
     }
 
-    public void reloadCurrent() throws FileNotFoundException, IOException 
+    public void reloadCurrent() throws FileNotFoundException, IOException
     {
         final Optional<File> currentFile = current().filter( ProfileData::hasFile ).flatMap( ProfileData::getSourceFile );
-        if ( currentFile.isPresent() ) 
+        if ( currentFile.isPresent() )
         {
             final File file = currentFile.get();
 
@@ -82,17 +82,17 @@ public final class ViewingHistory
                 final Optional<Profile> newSelection = findSameProfile( profiles );
                 history.set( ptr , new ProfileData(file,profiles, newSelection ) );
                 notifyListeners( current() );
-            } 
+            }
         }
     }
 
-    public void setCurrentProfile(Profile profile,boolean triggeredFromComboBox) 
+    public void setCurrentProfile(Profile profile,boolean triggeredFromComboBox)
     {
         current().get().setSelectedProfile( profile );
         notifyListeners( current() , triggeredFromComboBox );
     }
-    
-    public void jumpTo(ProfileData data) 
+
+    public void jumpTo(ProfileData data)
     {
         final int idx = history.indexOf( data );
         if ( idx == -1 ) {
@@ -102,13 +102,13 @@ public final class ViewingHistory
         notifyListeners( current() );
     }
 
-    public void clear() 
+    public void clear()
     {
         history.clear();
         ptr=0;
         notifyListeners(Optional.empty());
     }
-    
+
     public void historyChanged() {
         notifyListeners( current() );
     }
@@ -121,12 +121,12 @@ public final class ViewingHistory
         listeners.forEach( l -> l.viewChanged( data , triggeredFromComboBox) );
     }
 
-    public Optional<ProfileData> latest() 
+    public Optional<ProfileData> latest()
     {
-        final Comparator<ProfileData> comp = new Comparator<ProfileData>() 
+        final Comparator<ProfileData> comp = new Comparator<ProfileData>()
         {
             @Override
-            public int compare(ProfileData p1, ProfileData p2) 
+            public int compare(ProfileData p1, ProfileData p2)
             {
                 final Optional<ZonedDateTime> a = p1.getTimestamp();
                 final Optional<ZonedDateTime> b = p2.getTimestamp();
@@ -146,19 +146,19 @@ public final class ViewingHistory
 
         return history.stream().sorted( comp.reversed() ).findFirst();
     }
-    
-    public void remove(ProfileData data) 
+
+    public void remove(ProfileData data)
     {
         remove(data,true);
     }
 
-    private boolean remove(ProfileData data,boolean notify) 
+    private boolean remove(ProfileData data,boolean notify)
     {
         int idx = history.indexOf( data );
         if (idx == -1 ) {
             return false;
         }
-        if ( idx > ptr ) // element is after current ptr, ptr stays the same 
+        if ( idx > ptr ) // element is after current ptr, ptr stays the same
         {
             history.remove( idx );
         } else if ( idx == ptr ) { // element is at the current ptr, stays the same
@@ -172,13 +172,13 @@ public final class ViewingHistory
                 }
                 return true;
             }
-        } 
-        else 
+        }
+        else
         {
             history.remove( idx );
             if ( ptr > 0 ) {
-                ptr--; 
-                if ( notify ) 
+                ptr--;
+                if ( notify )
                 {
                     notifyListeners( current() );
                 }
@@ -188,32 +188,32 @@ public final class ViewingHistory
         return false;
     }
 
-    public Optional<ProfileData> current() 
+    public Optional<ProfileData> current()
     {
         return ptr < history.size() ? Optional.of( history.get( ptr ) ) : Optional.empty();
     }
-    
-    public Optional<ProfileData> previous() 
+
+    public Optional<ProfileData> previous()
     {
         int prev = ptr-1;
-        if ( prev >= 0 && prev < history.size() ) 
+        if ( prev >= 0 && prev < history.size() )
         {
             return Optional.of( history.get(prev) );
         }
         return Optional.empty();
     }
 
-    public boolean jumpToPrevious() 
+    public boolean jumpToPrevious()
     {
         if ( ptr > 0 ) {
             ptr--;
-            notifyListeners( current() );                
+            notifyListeners( current() );
             return true;
         }
         return false;
     }
 
-    public boolean jumpToNext() 
+    public boolean jumpToNext()
     {
         if ( (ptr+1) < history.size() ) {
             ptr++;
@@ -223,10 +223,10 @@ public final class ViewingHistory
         return false;
     }
 
-    public void unload(List<ProfileData> toUnload) 
+    public void unload(List<ProfileData> toUnload)
     {
         boolean notify = false;
-        for (ProfileData profileData : toUnload) 
+        for (ProfileData profileData : toUnload)
         {
             System.out.println("Unloading "+profileData);
             notify |= remove( profileData , false );
@@ -235,16 +235,16 @@ public final class ViewingHistory
             notifyListeners( current() );
         }
     }
-    
-    public void saveCurrent(File file,IProfileIOAdapter ioAdapter) throws IOException 
+
+    public void saveCurrent(File file,IProfileIOAdapter ioAdapter) throws IOException
     {
         final ProfileData profileData = current().get();
-        ioAdapter.save( profileData.getMethodMap() , profileData.getProfiles() , new FileOutputStream( file ) );
+        ioAdapter.save( profileData.getProfileContainer().getMethodContainer() , profileData.getProfiles() , new FileOutputStream( file ) );
         profileData.setFile( file );
         notifyListeners( current() );
     }
 
-    public void moveUp(ProfileData profileData) 
+    public void moveUp(ProfileData profileData)
     {
         final int idx = history.indexOf( profileData );
         if ( idx > 0 ) {
@@ -254,20 +254,20 @@ public final class ViewingHistory
 
     public void moveDown(ProfileData profileData) {
         final int idx = history.indexOf( profileData );
-        if ( idx >= 0 && (idx+1) < history.size() ) 
+        if ( idx >= 0 && (idx+1) < history.size() )
         {
             swap( idx , idx+1 );
         }
     }
-    
-    private void swap(int idx1,int idx2) 
+
+    private void swap(int idx1,int idx2)
     {
         final Optional<ProfileData> currentSelection = current();
         ProfileData a = history.get(idx1);
         ProfileData b = history.get(idx2);
         history.set(idx1, b );
         history.set(idx2, a);
-        if ( currentSelection.isPresent() ) 
+        if ( currentSelection.isPresent() )
         {
             if ( currentSelection.get() == a ) {
                 ptr = idx2;

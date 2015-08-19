@@ -297,7 +297,7 @@ public class Agent
 			super.visit(version, access, name, signature, superName, interfaces);
 			popClassname();
 		}
-		
+
 		@Override
 		public void visitOuterClass(String owner, String name, String desc)
 		{
@@ -357,10 +357,10 @@ public class Agent
 				}
 
 				@Override
-				public void visitCode() 
+				public void visitCode()
 				{
 				    visitLabel( methodStart );
-				    
+
 					super.visitCode();
 
 					start = new Label();
@@ -373,7 +373,7 @@ public class Agent
 
 					mv.visitLabel( start );
 				}
-				
+
 				@Override
 				public void visitInsn(int opcode)
 				{
@@ -403,12 +403,12 @@ public class Agent
 				{
                     final MethodIdentifier methodName;
                     if ( lineNumber == -1 ) {
-                        methodName = new MethodIdentifier(currentClassName() , name , desc );
+                        methodName = new MethodIdentifier(methodId,currentClassName() , name , desc );
                     } else {
-                        methodName =  new MethodIdentifier(currentClassName() , name , desc , lineNumber );
-                    }           
-                    Profile.registerMethod( methodName , methodId );
-                    
+                        methodName =  new MethodIdentifier(methodId,currentClassName() , name , desc , lineNumber );
+                    }
+                    Profile.registerMethod( methodName );
+
 					mv.visitJumpInsn(Opcodes.GOTO, successfulReturn);
 
 					mv.visitLabel(end);

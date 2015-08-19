@@ -18,11 +18,11 @@ public class TestApplicationManual
 
     public static void main(String[] args) throws InterruptedException, IOException
     {
-    	Profile.registerMethod(new MethodIdentifier("de/codesourcery/sampleapp/TestApplicationManual","run","()"),0);
-    	Profile.registerMethod(new MethodIdentifier("de/codesourcery/sampleapp/TestApplicationManual","method1","()"),1);
-    	Profile.registerMethod(new MethodIdentifier("de/codesourcery/sampleapp/TestApplicationManual","method2","()"),2);
-    	Profile.registerMethod(new MethodIdentifier("de/codesourcery/sampleapp/TestApplicationManual","method3","()"),3);
-    	Profile.registerMethod(new MethodIdentifier("de/codesourcery/sampleapp/TestApplicationManual","method4","()"),4);
+    	Profile.registerMethod(new MethodIdentifier(0,"de/codesourcery/sampleapp/TestApplicationManual","run","()") );
+    	Profile.registerMethod(new MethodIdentifier(1,"de/codesourcery/sampleapp/TestApplicationManual","method1","()") );
+    	Profile.registerMethod(new MethodIdentifier(2,"de/codesourcery/sampleapp/TestApplicationManual","method2","()") );
+    	Profile.registerMethod(new MethodIdentifier(3,"de/codesourcery/sampleapp/TestApplicationManual","method3","()") );
+    	Profile.registerMethod(new MethodIdentifier(4,"de/codesourcery/sampleapp/TestApplicationManual","method4","()") );
 
         final CountDownLatch latch = new CountDownLatch(5);
         for ( int i = 0 ; i < 5 ; i++ )

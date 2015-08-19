@@ -6,8 +6,8 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Stack;
+import java.util.function.Consumer;
 
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLInputFactory;
@@ -16,6 +16,7 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import javax.xml.stream.XMLStreamWriter;
 
+import de.codesourcery.toyprofiler.ClassMethodsContainer;
 import de.codesourcery.toyprofiler.Profile;
 import de.codesourcery.toyprofiler.Profile.MethodIdentifier;
 import de.codesourcery.toyprofiler.Profile.MethodStats;
@@ -25,10 +26,10 @@ import net.openhft.koloboke.collect.map.hash.HashIntObjMaps;
 
 public class XMLSerializer implements IProfileIOAdapter
 {
-    private MethodStats readMethodStats(XMLStreamReader reader) throws XMLStreamException 
+    private MethodStats readMethodStats(XMLStreamReader reader) throws XMLStreamException
     {
         final int method = Integer.parseInt( readAttribute( "methodNameId" , reader ) );
-        final MethodStats stats = new MethodStats(method); 
+        final MethodStats stats = new MethodStats(method);
 
         stats.setInvocationCount( Long.parseLong( readAttribute("invocations",reader ) ) );
         stats.setTotalTimeMillis( Float.parseFloat( readAttribute("totalTime",reader ) ) );
@@ -142,7 +143,7 @@ public class XMLSerializer implements IProfileIOAdapter
                         {
                             final int id = Integer.parseInt( readAttribute( "id" , reader ) );
                             final String name = readAttribute( "name" , reader );
-                            methodNameMap.put(id, MethodIdentifier.fromString( name ) );
+                            methodNameMap.put(id, MethodIdentifier.fromString( id , name ) );
                         }
                         else if ( "profile".equals( reader.getLocalName() ) )
                         {
@@ -165,14 +166,14 @@ public class XMLSerializer implements IProfileIOAdapter
                 try { reader.close(); } catch(XMLStreamException e) { /* ok */ }
             }
         }
-        return new ProfileContainer( result , methodNameMap );
+        return new ProfileContainer( result , new ClassMethodsContainer( methodNameMap ) );
     }
 
     /* (non-Javadoc)
      * @see de.codesourcery.toyprofiler.util.IProfileIOAdapter#save(java.util.Map, java.util.Collection, java.io.OutputStream)
      */
     @Override
-    public void save(Map<Integer,MethodIdentifier> methodNameMap , Collection<Profile> profiles, OutputStream out) throws IOException
+    public void save(ClassMethodsContainer methodContainer , Collection<Profile> profiles, OutputStream out) throws IOException
     {
         boolean success = false;
         XMLStreamWriter writer = null;
@@ -185,14 +186,33 @@ public class XMLSerializer implements IProfileIOAdapter
             writer.writeStartElement("profilingResults");  // <profilingResults>
 
             writer.writeStartElement("methodNames"); // <methodNames>
-            for ( Integer id : methodNameMap.keySet() )
+
+            final XMLStreamWriter finalWriter = writer;
+            final Consumer<MethodIdentifier> visitor = name ->
             {
-                final MethodIdentifier name = methodNameMap.get( id.intValue() );
-                writer.writeStartElement("methodName"); // <methodName...>
-                writer.writeAttribute( "id" , Integer.toString(id) );
-                writer.writeAttribute( "name" , name.toString() );
-                writer.writeEndElement(); // </methodName>
+                try
+                {
+	                finalWriter.writeAttribute( "id" , Integer.toString( name.id ) );
+	                finalWriter.writeAttribute( "name" , name.toString() );
+	                finalWriter.writeEndElement(); // </methodName>
+				} catch (XMLStreamException e) {
+					throw new RuntimeException(e);
+				}
+
+            };
+
+            try {
+            	methodContainer.visitMethods( visitor );
             }
+            catch(RuntimeException e)
+            {
+            	if ( e.getCause() instanceof XMLStreamException)
+            	{
+            		throw (XMLStreamException) e.getCause();
+            	}
+            	throw e;
+            }
+
             writer.writeEndElement(); // </methodNames>
 
             writer.writeStartElement("profiles"); // <profiles>
@@ -220,24 +240,24 @@ public class XMLSerializer implements IProfileIOAdapter
             if ( writer != null )
             {
                 try {
-                    writer.close(); 
+                    writer.close();
                 }
-                catch(XMLStreamException e) 
-                { 
-                    if ( success ) 
+                catch(XMLStreamException e)
+                {
+                    if ( success )
                     {
                         throw new IOException(e);
                     }
                 }
-            } 
-            else 
+            }
+            else
             {
-                try { 
-                    out.close(); 
-                } 
-                catch(IOException e) 
-                { 
-                    if ( success ) 
+                try {
+                    out.close();
+                }
+                catch(IOException e)
+                {
+                    if ( success )
                     {
                         throw new IOException(e);
                     }
