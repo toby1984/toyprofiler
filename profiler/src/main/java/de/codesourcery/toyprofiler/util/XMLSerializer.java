@@ -192,6 +192,7 @@ public class XMLSerializer implements IProfileIOAdapter
             {
                 try
                 {
+                    finalWriter.writeStartElement("methodName"); // </methodName>
 	                finalWriter.writeAttribute( "id" , Integer.toString( name.id ) );
 	                finalWriter.writeAttribute( "name" , name.toString() );
 	                finalWriter.writeEndElement(); // </methodName>
